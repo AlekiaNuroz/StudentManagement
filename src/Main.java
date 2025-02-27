@@ -1,6 +1,16 @@
 import java.util.Scanner;
 
+/**
+ * Main class for the Student Management System.
+ * It provides a command-line interface to manage courses and students.
+ */
 public class Main {
+    
+    /**
+     * The entry point of the application.
+     *
+     * @param args Command-line arguments (not used).
+     */
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         DatabaseManager databaseManager = new DatabaseManager();
@@ -13,6 +23,13 @@ public class Main {
         scanner.close();
     }
 
+    /**
+     * Displays the main menu and handles user input.
+     *
+     * @param databaseManager The database manager instance.
+     * @param scanner The scanner for user input.
+     * @return {@code false} if the user chooses to exit, otherwise {@code true}.
+     */
     private static boolean handleMainMenu(DatabaseManager databaseManager, Scanner scanner) {
         IOHelper.clearScreen();
         IOHelper.printMenu("Welcome to the Student Management System",
@@ -35,6 +52,12 @@ public class Main {
         return true;
     }
 
+    /**
+     * Manages course-related operations, such as listing, adding, and deleting courses.
+     *
+     * @param db The database manager instance.
+     * @param scanner The scanner for user input.
+     */
     private static void manageCourses(DatabaseManager db, Scanner scanner) {
         CourseManagement courseManagement = new CourseManagement(db, scanner);
         boolean running = true;
@@ -49,6 +72,13 @@ public class Main {
         }
     }
 
+    /**
+     * Handles user choices related to course management.
+     *
+     * @param courseManagement The course management instance.
+     * @param choice The user’s menu choice.
+     * @return {@code false} if the user chooses to exit course management, otherwise {@code true}.
+     */
     private static boolean handleCourseChoice(CourseManagement courseManagement, int choice) {
         switch (choice) {
             case 1 -> courseManagement.listCourses();

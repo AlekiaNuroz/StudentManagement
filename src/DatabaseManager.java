@@ -1,18 +1,34 @@
 import java.sql.*;
 import java.util.ArrayList;
 
+/**
+ * Manages database operations for the student management system,
+ * ensuring tables exist and handling course-related transactions.
+ */
 public class DatabaseManager {
     private final String databaseUrl = "jdbc:sqlite:university.db";
     private final String[] tableNames = {"students", "courses", "enrollments"};
 
+    /**
+     * Initializes the database manager and ensures required tables exist.
+     */
     public DatabaseManager() {
         ensureTablesExist();
     }
 
+    /**
+     * Establishes a connection to the SQLite database.
+     *
+     * @return Connection object
+     * @throws SQLException if a database access error occurs
+     */
     private Connection getConnection() throws SQLException {
         return DriverManager.getConnection(databaseUrl);
     }
 
+    /**
+     * Ensures necessary tables exist by checking and creating them if absent.
+     */
     private void ensureTablesExist() {
         for (String tableName : tableNames) {
             if (!doesTableExist(tableName)) {
@@ -21,6 +37,12 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Checks if a specific table exists in the database.
+     *
+     * @param tableName Name of the table to check
+     * @return true if the table exists, false otherwise
+     */
     private boolean doesTableExist(String tableName) {
         String query = "SELECT name FROM sqlite_master WHERE type='table' AND name=?";
         try (Connection connection = getConnection();
@@ -35,29 +57,34 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Creates a specified table in the database if it does not already exist.
+     *
+     * @param tableName Name of the table to create
+     */
     private void createTable(String tableName) {
         String createTableSQL;
         switch (tableName) {
             case "students":
-                createTableSQL = "CREATE TABLE IF NOT EXISTS students (" +
-                        "id TEXT PRIMARY KEY, " +
-                        "name TEXT NOT NULL)";
+                createTableSQL = "CREATE TABLE IF NOT EXISTS students ("
+                        + "id TEXT PRIMARY KEY, "
+                        + "name TEXT NOT NULL)";
                 break;
             case "courses":
-                createTableSQL = "CREATE TABLE IF NOT EXISTS courses (" +
-                        "course_code TEXT PRIMARY KEY, " +
-                        "name TEXT NOT NULL, " +
-                        "max_capacity INTEGER NOT NULL," +
-                        "isDeleted BOOLEAN DEFAULT FALSE)";
+                createTableSQL = "CREATE TABLE IF NOT EXISTS courses ("
+                        + "course_code TEXT PRIMARY KEY, "
+                        + "name TEXT NOT NULL, "
+                        + "max_capacity INTEGER NOT NULL,"
+                        + "isDeleted BOOLEAN DEFAULT FALSE)";
                 break;
             case "enrollments":
-                createTableSQL = "CREATE TABLE IF NOT EXISTS enrollments (" +
-                        "student_id TEXT, " +
-                        "course_code TEXT, " +
-                        "grade REAL, " +
-                        "PRIMARY KEY (student_id, course_code), " +
-                        "FOREIGN KEY(student_id) REFERENCES students(id), " +
-                        "FOREIGN KEY(course_code) REFERENCES courses(course_code))";
+                createTableSQL = "CREATE TABLE IF NOT EXISTS enrollments ("
+                        + "student_id TEXT, "
+                        + "course_code TEXT, "
+                        + "grade REAL, "
+                        + "PRIMARY KEY (student_id, course_code), "
+                        + "FOREIGN KEY(student_id) REFERENCES students(id), "
+                        + "FOREIGN KEY(course_code) REFERENCES courses(course_code))";
                 break;
             default:
                 System.out.println("Unknown table: " + tableName);
@@ -73,6 +100,12 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Inserts a new course into the database.
+     *
+     * @param course Course object to insert
+     * @return true if insertion was successful, false otherwise
+     */
     public boolean insertCourse(Course course) {
         String insertSQL = "INSERT INTO courses (course_code, name, max_capacity) VALUES (?, ?, ?)";
 
@@ -94,6 +127,13 @@ public class DatabaseManager {
         return false;
     }
 
+    /**
+     * Updates a course's deleted status (delete or restore).
+     *
+     * @param course Course object to modify
+     * @param delete true to mark the course as deleted, false to restore
+     * @return true if the update was successful, false otherwise
+     */
     public boolean deleteRestoreCourse(Course course, boolean delete) {
         String updateSQL = "UPDATE courses SET isDeleted = ? WHERE course_code = ?";
 
@@ -116,56 +156,29 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Retrieves a list of courses based on deletion status.
+     *
+     * @param deleted true to fetch deleted courses, false for active courses
+     * @return List of Course objects
+     */
     public ArrayList<Course> getCourses(boolean deleted) {
         String selectSQL = "SELECT * FROM courses WHERE isDeleted=?";
         ArrayList<Course> courses = new ArrayList<>();
 
         try (Connection conn = DriverManager.getConnection(databaseUrl);
-            PreparedStatement statement = conn.prepareStatement(selectSQL)) {
+             PreparedStatement statement = conn.prepareStatement(selectSQL)) {
 
             statement.setBoolean(1, deleted);
              try (ResultSet resultSet = statement.executeQuery()) {
-
                 while (resultSet.next()) {
                     courses.add(getCourseFromResultSet(resultSet));
                 }
             }
-
             return courses;
         } catch (SQLException e) {
-                System.out.println("Error getting courses: " + e.getMessage());
-                return new ArrayList<>();
-        }
-    }
-
-    public Course getCourse(String id) {
-        String sql = "SELECT * FROM courses WHERE UPPER(course_code) = ?";
-
-        try (Connection conn = DriverManager.getConnection(databaseUrl);
-             PreparedStatement statement = conn.prepareStatement(sql)) {
-
-            statement.setString(1, id.toUpperCase());
-
-            try (ResultSet resultSet = statement.executeQuery()) {
-                if (resultSet.next()) {
-                    return getCourseFromResultSet(resultSet); // Create and return Course object
-                }
-            }
-        } catch (SQLException e) {
-            System.err.println("Error fetching course: " + e.getMessage());
-        }
-        return null;
-    }
-
-    private Course getCourseFromResultSet(ResultSet resultSet) {
-        try {
-            String id = resultSet.getString("course_code");
-            String name = resultSet.getString("name");
-            int capacity = resultSet.getInt("max_capacity");
-            return new Course(id, name, capacity);
-        } catch (SQLException e) {
-            System.err.println("Error retrieving course data from ResultSet: " + e.getMessage());
-            return null; // Return null if there's an issue retrieving data
+            System.out.println("Error getting courses: " + e.getMessage());
+            return new ArrayList<>();
         }
     }
 }
