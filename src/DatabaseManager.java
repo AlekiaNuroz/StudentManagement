@@ -181,4 +181,48 @@ public class DatabaseManager {
             return new ArrayList<>();
         }
     }
+
+    /**
+     * Retrieves a course from the database based on its course code.
+     *
+     * @param id Course code
+     * @return Course object if found, null otherwise
+     */
+    public Course getCourse(String id) {
+        String sql = "SELECT * FROM courses WHERE UPPER(course_code) = ?";
+
+        try (Connection conn = DriverManager.getConnection(databaseUrl);
+             PreparedStatement statement = conn.prepareStatement(sql)) {
+
+            statement.setString(1, id.toUpperCase());
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return getCourseFromResultSet(resultSet);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching course: " + e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * Extracts a Course object from a ResultSet.
+     *
+     * @param resultSet ResultSet containing course data
+     * @return Course object or null if an error occurs
+     */
+    private Course getCourseFromResultSet(ResultSet resultSet) {
+        try {
+            String id = resultSet.getString("course_code");
+            String name = resultSet.getString("name");
+            int capacity = resultSet.getInt("max_capacity");
+            return new Course(id, name, capacity);
+        } catch (SQLException e) {
+            System.err.println("Error retrieving course data from ResultSet: " + e.getMessage());
+            return null; // Return null if there's an issue retrieving data
+        }
+    }
 }
+
