@@ -109,7 +109,7 @@ public class DatabaseManager {
     public boolean insertCourse(Course course) {
         String insertSQL = "INSERT INTO courses (course_code, name, max_capacity) VALUES (?, ?, ?)";
 
-        try (Connection connection = DriverManager.getConnection(databaseUrl);
+        try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(insertSQL)) {
 
             statement.setString(1, course.getId());
@@ -137,7 +137,7 @@ public class DatabaseManager {
     public boolean deleteRestoreCourse(Course course, boolean delete) {
         String updateSQL = "UPDATE courses SET isDeleted = ? WHERE course_code = ?";
 
-        try (Connection connection = DriverManager.getConnection(databaseUrl);
+        try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(updateSQL)) {
 
             statement.setBoolean(1, delete);
@@ -166,7 +166,7 @@ public class DatabaseManager {
         String selectSQL = "SELECT * FROM courses WHERE isDeleted=?";
         ArrayList<Course> courses = new ArrayList<>();
 
-        try (Connection conn = DriverManager.getConnection(databaseUrl);
+        try (Connection conn = getConnection();
              PreparedStatement statement = conn.prepareStatement(selectSQL)) {
 
             statement.setBoolean(1, deleted);
@@ -191,7 +191,7 @@ public class DatabaseManager {
     public Course getCourse(String id) {
         String sql = "SELECT * FROM courses WHERE UPPER(course_code) = ?";
 
-        try (Connection conn = DriverManager.getConnection(databaseUrl);
+        try (Connection conn = getConnection();
              PreparedStatement statement = conn.prepareStatement(sql)) {
 
             statement.setString(1, id.toUpperCase());
@@ -222,6 +222,17 @@ public class DatabaseManager {
         } catch (SQLException e) {
             System.err.println("Error retrieving course data from ResultSet: " + e.getMessage());
             return null; // Return null if there's an issue retrieving data
+        }
+    }
+
+    private Student getStudentFromResultSet (ResultSet resultSet) {
+        try {
+            String studentId = resultSet.getString("id");
+            String name = resultSet.getString("name");
+            return new Student(name, studentId);
+        } catch (SQLException e) {
+            System.err.println("Error retrieving student data from ResultSet: " + e.getMessage());
+            return null;
         }
     }
 }
