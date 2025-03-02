@@ -12,6 +12,9 @@ public class Main {
      * @param args Command-line arguments (not used).
      */
     public static void main(String[] args) {
+        String dbUsername = System.getenv("PGSQL_USERNAME");
+        String dbPassword = System.getenv("PGSQL_PASSWORD");
+
         Scanner scanner = new Scanner(System.in);
         DatabaseManager databaseManager = new DatabaseManager();
         boolean running = true;
