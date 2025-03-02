@@ -1,3 +1,5 @@
+import com.zaxxer.hikari.HikariConfig;
+import com.zaxxer.hikari.HikariDataSource;
 import java.sql.*;
 import java.util.ArrayList;
 
@@ -7,7 +9,7 @@ import java.util.ArrayList;
  */
 public class DatabaseManager {
     private final String databaseUrl = "jdbc:sqlite:university.db";
-    private final String[] tableNames = {"students", "courses", "enrollments"};
+    private static HikariDataSource dataSource;
 
     /**
      * Initializes the database manager and ensures required tables exist.
@@ -30,73 +32,35 @@ public class DatabaseManager {
      * Ensures necessary tables exist by checking and creating them if absent.
      */
     private void ensureTablesExist() {
-        for (String tableName : tableNames) {
-            if (!doesTableExist(tableName)) {
-                createTable(tableName);
-            }
-        }
-    }
-
-    /**
-     * Checks if a specific table exists in the database.
-     *
-     * @param tableName Name of the table to check
-     * @return true if the table exists, false otherwise
-     */
-    private boolean doesTableExist(String tableName) {
-        String query = "SELECT name FROM sqlite_master WHERE type='table' AND name=?";
-        try (Connection connection = getConnection();
-             PreparedStatement statement = connection.prepareStatement(query)) {
-            statement.setString(1, tableName);
-            try (ResultSet resultSet = statement.executeQuery()) {
-                return resultSet.next();
-            }
-        } catch (SQLException e) {
-            System.out.println("Error while checking if table exists: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Creates a specified table in the database if it does not already exist.
-     *
-     * @param tableName Name of the table to create
-     */
-    private void createTable(String tableName) {
-        String createTableSQL;
-        switch (tableName) {
-            case "students":
-                createTableSQL = "CREATE TABLE IF NOT EXISTS students ("
-                        + "id TEXT PRIMARY KEY, "
-                        + "name TEXT NOT NULL)";
-                break;
-            case "courses":
-                createTableSQL = "CREATE TABLE IF NOT EXISTS courses ("
-                        + "course_code TEXT PRIMARY KEY, "
-                        + "name TEXT NOT NULL, "
-                        + "max_capacity INTEGER NOT NULL,"
-                        + "isDeleted BOOLEAN DEFAULT FALSE)";
-                break;
-            case "enrollments":
-                createTableSQL = "CREATE TABLE IF NOT EXISTS enrollments ("
-                        + "student_id TEXT, "
-                        + "course_code TEXT, "
-                        + "grade REAL, "
-                        + "PRIMARY KEY (student_id, course_code), "
-                        + "FOREIGN KEY(student_id) REFERENCES students(id), "
-                        + "FOREIGN KEY(course_code) REFERENCES courses(course_code))";
-                break;
-            default:
-                System.out.println("Unknown table: " + tableName);
-                return;
-        }
-
+        String[] createTableSQLs = {
+            "CREATE TABLE IF NOT EXISTS students ("
+                    + "id TEXT PRIMARY KEY, "
+                    + "name TEXT NOT NULL)",
+    
+            "CREATE TABLE IF NOT EXISTS courses ("
+                    + "course_code TEXT PRIMARY KEY, "
+                    + "name TEXT NOT NULL, "
+                    + "max_capacity INTEGER NOT NULL, "
+                    + "isDeleted BOOLEAN DEFAULT FALSE)",
+    
+            "CREATE TABLE IF NOT EXISTS enrollments ("
+                    + "student_id TEXT, "
+                    + "course_code TEXT, "
+                    + "grade REAL, "
+                    + "PRIMARY KEY (student_id, course_code), "
+                    + "FOREIGN KEY(student_id) REFERENCES students(id), "
+                    + "FOREIGN KEY(course_code) REFERENCES courses(course_code))"
+        };
+    
         try (Connection connection = getConnection();
              Statement statement = connection.createStatement()) {
-                statement.execute(createTableSQL);
-                System.out.println("Table " + tableName + " created successfully.");
+    
+            for (String sql : createTableSQLs) {
+                statement.execute(sql);
+            }
+            System.out.println("All required tables ensured.");
         } catch (SQLException e) {
-            System.out.println("Error while creating table: " + e.getMessage());
+            System.err.println("Error ensuring tables: " + e.getMessage());
         }
     }
 
