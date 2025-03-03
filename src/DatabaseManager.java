@@ -8,8 +8,21 @@ import java.util.ArrayList;
  * ensuring tables exist and handling course-related transactions.
  */
 public class DatabaseManager {
-    private final String databaseUrl = "jdbc:sqlite:university.db";
-    private static HikariDataSource dataSource;
+    private static final String databaseUrl = "jdbc:sqlite:university.db";
+    private static final String dbUser = System.getenv("PGSQL_USERNAME");
+    private static final String dbPassword = System.getenv("PGSQL_PASSWORD");
+    private static final HikariConfig config = new HikariConfig();
+    private static final HikariDataSource dataSource;
+
+    static {
+        config.setJdbcUrl(databaseUrl);
+        config.setUsername(dbUser);
+        config.setPassword(dbPassword);
+        config.addDataSourceProperty("cachePrepStmts" , "true");
+        config.addDataSourceProperty("prepStmtCacheSize" , "250");
+        config.addDataSourceProperty("prepStmtCacheSqlLimit" , "2048");
+        dataSource = new HikariDataSource(config);
+    }
 
     /**
      * Initializes the database manager and ensures required tables exist.
@@ -25,7 +38,7 @@ public class DatabaseManager {
      * @throws SQLException if a database access error occurs
      */
     private Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(databaseUrl);
+        return dataSource.getConnection();
     }
 
     /**
