@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.util.Scanner;
 
 /**
@@ -110,10 +111,26 @@ public class IOHelper {
     }
 
     /**
-     * Clears the console screen by printing multiple new lines.
+     * Clears the console screen. Supports Windows, macOS, and Linux.
      */
     public static void clearScreen() {
-        for (int i = 0; i < 50; i++) System.out.println();
+        String os = System.getProperty("os.name").toLowerCase();
+
+        try {
+            if (os.contains("win")) {
+                // Windows
+                new ProcessBuilder("cmd", "/c", "cls").inheritIO().start().waitFor();
+            } else if (os.contains("mac") || os.contains("nix") || os.contains("nux")) {
+                // macOS or Linux/Unix
+                new ProcessBuilder("clear").inheritIO().start().waitFor();
+            } else {
+                System.out.println("Unsupported operating system.");
+            }
+        } catch (InterruptedException e) {
+            System.out.println("Interrupted while clearing screen.");
+        } catch (IOException e) {
+            System.err.println("System Error: " + e.getMessage());
+        }
     }
 
     /**

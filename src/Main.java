@@ -42,13 +42,14 @@ public class Main {
                 break;
             case 2:
                 System.out.println("Choice 2"); // Placeholder for student management logic
+                IOHelper.wait(1);
                 break;
             case 3:
                 return false; // Exit the program
             default:
                 System.out.println("Invalid choice. Try again.");
+                IOHelper.wait(1);
         }
-        IOHelper.wait(1);
         return true;
     }
 
@@ -85,14 +86,22 @@ public class Main {
             case 2 -> courseManagement.addCourse();
             case 3 -> courseManagement.removeCourse();
             case 4 -> courseManagement.restoreCourse();
-            case 5 -> System.out.println("Choice 5"); // Placeholder for grade assignment
-            case 6 -> System.out.println("Choice 6"); // Placeholder for grade calculation
+            case 5 -> {
+                System.out.println("Choice 5");
+                IOHelper.wait(1);
+            } // Placeholder for grade assignment
+            case 6 -> {
+                System.out.println("Choice 6");
+                IOHelper.wait(1);
+            } // Placeholder for grade calculation
             case 7 -> {
                 return false;
             } // Exit course management
-            default -> System.out.println("Invalid choice. Try again.");
+            default -> {
+                System.out.println("Invalid choice. Try again.");
+                IOHelper.wait(1);
+            }
         }
-        IOHelper.wait(1);
         return true;
     }
 }

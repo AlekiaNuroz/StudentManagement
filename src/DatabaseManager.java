@@ -8,19 +8,13 @@ import java.util.ArrayList;
  * ensuring tables exist and handling course-related transactions.
  */
 public class DatabaseManager {
-    private static final String databaseUrl = "jdbc:sqlite:university.db";
-    private static final String dbUser = System.getenv("PGSQL_USERNAME");
-    private static final String dbPassword = System.getenv("PGSQL_PASSWORD");
     private static final HikariConfig config = new HikariConfig();
     private static final HikariDataSource dataSource;
 
     static {
-        config.setJdbcUrl(databaseUrl);
-        config.setUsername(dbUser);
-        config.setPassword(dbPassword);
-        config.addDataSourceProperty("cachePrepStmts" , "true");
-        config.addDataSourceProperty("prepStmtCacheSize" , "250");
-        config.addDataSourceProperty("prepStmtCacheSqlLimit" , "2048");
+        config.setJdbcUrl(System.getenv("PGSQL_DATABASE"));
+        config.setUsername(System.getenv("PGSQL_USERNAME"));
+        config.setPassword(System.getenv("PGSQL_PASSWORD"));
         dataSource = new HikariDataSource(config);
     }
 
@@ -42,27 +36,58 @@ public class DatabaseManager {
     }
 
     /**
-     * Ensures necessary tables exist by checking and creating them if absent.
+     * Ensures that the required database tables exist.
+     * <p>
+     * This method executes SQL statements to create the necessary tables
+     * (`students`, `courses`, and `enrollments`) if they do not already exist.
+     * It establishes a database connection, creates the tables, and handles
+     * any SQL exceptions that may occur.
+     * </p>
+     *
+     * <p><b>Tables Created:</b></p>
+     * <ul>
+     *   <li><b>students</b> - Stores student records with an ID and name.</li>
+     *   <li><b>courses</b> - Stores course details with a unique course code, name,
+     *       maximum capacity, and a deletion flag.</li>
+     *   <li><b>enrollments</b> - Manages student-course enrollments,
+     *       linking students to courses with an optional grade.</li>
+     * </ul>
+     *
+     * <p><b>Behavior:</b></p>
+     * <ul>
+     *   <li>Retrieves a database connection.</li>
+     *   <li>Executes SQL statements to create tables if they do not exist.</li>
+     *   <li>Uses a try-with-resources block to ensure resources are properly closed.</li>
+     *   <li>Catches and logs any SQL exceptions encountered during execution.</li>
+     * </ul>
+     *
+     * <p><b>Dependencies:</b></p>
+     * <ul>
+     *   <li>{@code getConnection()} - Retrieves a database connection.</li>
+     *   <li>{@code java.sql.Connection} - Manages the database connection.</li>
+     *   <li>{@code java.sql.Statement} - Executes SQL queries.</li>
+     *   <li>{@code SQLException} - Handles database-related exceptions.</li>
+     * </ul>
      */
     private void ensureTablesExist() {
         String[] createTableSQLs = {
             "CREATE TABLE IF NOT EXISTS students ("
-                    + "id TEXT PRIMARY KEY, "
-                    + "name TEXT NOT NULL)",
+                + "id TEXT PRIMARY KEY, "
+                + "name TEXT NOT NULL)",
     
             "CREATE TABLE IF NOT EXISTS courses ("
-                    + "course_code TEXT PRIMARY KEY, "
-                    + "name TEXT NOT NULL, "
-                    + "max_capacity INTEGER NOT NULL, "
-                    + "isDeleted BOOLEAN DEFAULT FALSE)",
+                + "course_code TEXT PRIMARY KEY, "
+                + "name TEXT NOT NULL, "
+                + "max_capacity INTEGER NOT NULL, "
+                + "isDeleted BOOLEAN DEFAULT FALSE)",
     
             "CREATE TABLE IF NOT EXISTS enrollments ("
-                    + "student_id TEXT, "
-                    + "course_code TEXT, "
-                    + "grade REAL, "
-                    + "PRIMARY KEY (student_id, course_code), "
-                    + "FOREIGN KEY(student_id) REFERENCES students(id), "
-                    + "FOREIGN KEY(course_code) REFERENCES courses(course_code))"
+                + "student_id TEXT, "
+                + "course_code TEXT, "
+                + "grade REAL, "
+                + "PRIMARY KEY (student_id, course_code), "
+                + "FOREIGN KEY(student_id) REFERENCES students(id), "
+                + "FOREIGN KEY(course_code) REFERENCES courses(course_code))"
         };
     
         try (Connection connection = getConnection();
@@ -71,7 +96,6 @@ public class DatabaseManager {
             for (String sql : createTableSQLs) {
                 statement.execute(sql);
             }
-            System.out.println("All required tables ensured.");
         } catch (SQLException e) {
             System.err.println("Error ensuring tables: " + e.getMessage());
         }
@@ -79,9 +103,32 @@ public class DatabaseManager {
 
     /**
      * Inserts a new course into the database.
+     * <p>
+     * This method adds a course record to the `courses` table with the given
+     * course code, name, and maximum capacity. If the course already exists,
+     * a message is displayed, and insertion is skipped.
+     * </p>
      *
-     * @param course Course object to insert
-     * @return true if insertion was successful, false otherwise
+     * <p><b>Behavior:</b></p>
+     * <ul>
+     *   <li>Establishes a database connection.</li>
+     *   <li>Prepares an SQL `INSERT` statement with placeholders for course details.</li>
+     *   <li>Sets parameter values based on the provided {@code Course} object.</li>
+     *   <li>Executes the statement and checks if any rows were affected.</li>
+     *   <li>Handles integrity constraint violations if the course already exists.</li>
+     *   <li>Catches and logs any SQL exceptions that may occur.</li>
+     * </ul>
+     *
+     * <p><b>Dependencies:</b></p>
+     * <ul>
+     *   <li>{@code getConnection()} - Retrieves a database connection.</li>
+     *   <li>{@code java.sql.Connection} - Manages the database connection.</li>
+     *   <li>{@code java.sql.PreparedStatement} - Executes the parameterized SQL statement.</li>
+     *   <li>{@code Course} - Represents the course object being inserted.</li>
+     * </ul>
+     *
+     * @param course The {@code Course} object containing course details.
+     * @return {@code true} if the course was successfully inserted, {@code false} otherwise.
      */
     public boolean insertCourse(Course course) {
         String insertSQL = "INSERT INTO courses (course_code, name, max_capacity) VALUES (?, ?, ?)";
@@ -105,13 +152,35 @@ public class DatabaseManager {
     }
 
     /**
-     * Updates a course's deleted status (delete or restore).
+     * Marks a course as deleted or restores a previously deleted course in the database.
+     * <p>
+     * This method updates the `isDeleted` flag in the `courses` table to either
+     * delete ({@code true}) or restore ({@code false}) a course based on the given parameter.
+     * If the specified course does not exist, a message is displayed.
+     * </p>
      *
-     * @param course Course object to modify
-     * @param delete true to mark the course as deleted, false to restore
-     * @return true if the update was successful, false otherwise
+     * <p><b>Behavior:</b></p>
+     * <ul>
+     *   <li>Establishes a database connection.</li>
+     *   <li>Prepares an SQL `UPDATE` statement to modify the `isDeleted` field.</li>
+     *   <li>Sets the deletion status based on the provided boolean value.</li>
+     *   <li>Executes the update and checks if any rows were affected.</li>
+     *   <li>Displays a message if the course does not exist.</li>
+     *   <li>Catches and logs any SQL exceptions that may occur.</li>
+     * </ul>
+     *
+     * <p><b>Dependencies:</b></p>
+     * <ul>
+     *   <li>{@code getConnection()} - Retrieves a database connection.</li>
+     *   <li>{@code java.sql.Connection} - Manages the database connection.</li>
+     *   <li>{@code java.sql.PreparedStatement} - Executes the parameterized SQL statement.</li>
+     *   <li>{@code Course} - Represents the course object being updated.</li>
+     * </ul>
+     *
+     * @param course The {@code Course} object representing the course to be deleted or restored.
+     * @param delete {@code true} to mark the course as deleted, {@code false} to restore it.
      */
-    public boolean deleteRestoreCourse(Course course, boolean delete) {
+    public void deleteRestoreCourse(Course course, boolean delete) {
         String updateSQL = "UPDATE courses SET isDeleted = ? WHERE course_code = ?";
 
         try (Connection connection = getConnection();
@@ -123,24 +192,45 @@ public class DatabaseManager {
             int rowsAffected = statement.executeUpdate();
             if (rowsAffected == 0) {
                 System.out.println("Course " + course.getId() + " does not exist in the database.");
-                return false;
             }
-            return true;
 
         } catch (SQLException e) {
             System.out.println("Error updating course status: " + e.getMessage());
-            return false;
         }
     }
 
     /**
-     * Retrieves a list of courses based on deletion status.
+     * Retrieves a list of courses from the database based on their deletion status.
+     * <p>
+     * This method queries the `courses` table and returns a list of courses
+     * that are either active ({@code isDeleted = false}) or deleted ({@code isDeleted = true}).
+     * The results are ordered by course code.
+     * </p>
      *
-     * @param deleted true to fetch deleted courses, false for active courses
-     * @return List of Course objects
+     * <p><b>Behavior:</b></p>
+     * <ul>
+     *   <li>Establishes a database connection.</li>
+     *   <li>Prepares an SQL `SELECT` query to retrieve courses based on deletion status.</li>
+     *   <li>Executes the query and iterates through the result set.</li>
+     *   <li>Converts each row into a {@code Course} object using {@code getCourseFromResultSet()}.</li>
+     *   <li>Handles SQL exceptions and returns an empty list in case of errors.</li>
+     * </ul>
+     *
+     * <p><b>Dependencies:</b></p>
+     * <ul>
+     *   <li>{@code getConnection()} - Retrieves a database connection.</li>
+     *   <li>{@code java.sql.Connection} - Manages the database connection.</li>
+     *   <li>{@code java.sql.PreparedStatement} - Executes the parameterized SQL query.</li>
+     *   <li>{@code java.sql.ResultSet} - Processes the query results.</li>
+     *   <li>{@code getCourseFromResultSet(ResultSet)} - Converts a database row into a {@code Course} object.</li>
+     * </ul>
+     *
+     * @param deleted {@code true} to retrieve deleted courses, {@code false} to retrieve active courses.
+     * @return An {@code ArrayList<Course>} containing the retrieved courses.
+     *         Returns an empty list if an error occurs.
      */
     public ArrayList<Course> getCourses(boolean deleted) {
-        String selectSQL = "SELECT * FROM courses WHERE isDeleted=?";
+        String selectSQL = "SELECT * FROM courses WHERE isDeleted=? ORDER BY course_code";
         ArrayList<Course> courses = new ArrayList<>();
 
         try (Connection conn = getConnection();
@@ -160,10 +250,34 @@ public class DatabaseManager {
     }
 
     /**
-     * Retrieves a course from the database based on its course code.
+     * Retrieves a course from the database by its course code.
+     * <p>
+     * This method queries the `courses` table for a course with the specified course code.
+     * The lookup is case-insensitive, as the course code is converted to uppercase.
+     * If the course exists, it is returned as a {@code Course} object;
+     * otherwise, {@code null} is returned.
+     * </p>
      *
-     * @param id Course code
-     * @return Course object if found, null otherwise
+     * <p><b>Behavior:</b></p>
+     * <ul>
+     *   <li>Establishes a database connection.</li>
+     *   <li>Prepares an SQL `SELECT` query with a parameterized course code.</li>
+     *   <li>Executes the query and checks if a result is found.</li>
+     *   <li>Uses {@code getCourseFromResultSet(ResultSet)} to convert the row into a {@code Course} object.</li>
+     *   <li>Handles SQL exceptions and prints an error message if an issue occurs.</li>
+     * </ul>
+     *
+     * <p><b>Dependencies:</b></p>
+     * <ul>
+     *   <li>{@code getConnection()} - Retrieves a database connection.</li>
+     *   <li>{@code java.sql.Connection} - Manages the database connection.</li>
+     *   <li>{@code java.sql.PreparedStatement} - Executes the parameterized SQL query.</li>
+     *   <li>{@code java.sql.ResultSet} - Processes the query results.</li>
+     *   <li>{@code getCourseFromResultSet(ResultSet)} - Converts a database row into a {@code Course} object.</li>
+     * </ul>
+     *
+     * @param id The course code to search for (case-insensitive).
+     * @return The {@code Course} object if found; otherwise, {@code null}.
      */
     public Course getCourse(String id) {
         String sql = "SELECT * FROM courses WHERE UPPER(course_code) = ?";
@@ -213,4 +327,3 @@ public class DatabaseManager {
         }
     }
 }
-
