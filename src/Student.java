@@ -5,8 +5,8 @@ import java.util.Map;
  * Represents a student with a name, student ID, and enrolled courses.
  */
 public class Student {
-    private String name;
     private String studentId;
+    private String name;
     private Map<Course, Double> enrolledCourses; // Course -> Grade
 
     /**
@@ -15,7 +15,7 @@ public class Student {
      * @param name      The name of the student.
      * @param studentId The unique identifier for the student.
      */
-    public Student(String name, String studentId) {
+    public Student(String studentId, String name) {
         this.name = name;
         this.studentId = studentId;
         this.enrolledCourses = new HashMap<>();
@@ -35,7 +35,7 @@ public class Student {
      *
      * @return The student ID.
      */
-    public String getStudentId() {
+    public String getId() {
         return studentId;
     }
 

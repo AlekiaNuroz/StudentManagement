@@ -41,8 +41,7 @@ public class Main {
                 manageCourses(databaseManager, scanner);
                 break;
             case 2:
-                System.out.println("Choice 2"); // Placeholder for student management logic
-                IOHelper.wait(1);
+                manageStudents(databaseManager, scanner);
                 break;
             case 3:
                 return false; // Exit the program
@@ -66,11 +65,46 @@ public class Main {
         while (running) {
             IOHelper.clearScreen();
             IOHelper.printMenu("Manage Courses",
-                    new String[]{"List Courses", "Add Course", "Delete Course", "Restore Course", "Assign Grade", "Calculate Overall Grade"});
+                    new String[]{"List Courses", "Add Course", "Delete Course", "Restore Course", "Calculate Overall Grade"});
 
-            int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 7);
+            int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 6);
             running = handleCourseChoice(courseManagement, choice);
         }
+    }
+
+    private static void manageStudents(DatabaseManager db, Scanner scanner) {
+        StudentManagement studentManagement = new StudentManagement(db, scanner);
+        boolean running = true;
+
+        while (running) {
+            IOHelper.clearScreen();
+            IOHelper.printMenu("Manage Courses",
+                    new String[]{"List Students", "Add Student", "Delete Student", "Restore Student", "Add Grade"});
+
+            int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 7);
+            running = handleStudentChoice(studentManagement, choice);
+        }
+    }
+
+    private static boolean handleStudentChoice(StudentManagement studentManagement, int choice) {
+        switch (choice) {
+            case 1 -> studentManagement.listStudents();
+            case 2 -> studentManagement.addStudent();
+            case 3 -> studentManagement.removeStudent();
+            case 4 -> studentManagement.restoreStudent();
+            case 5 -> {
+                System.out.println("Choice 5");
+                IOHelper.wait(1);
+            } // Placeholder for grade assignment
+            case 6 -> {
+                return false;
+            }
+            default -> {
+                System.out.println("Invalid choice. Try again.");
+                IOHelper.wait(1);
+            }
+        }
+        return true;
     }
 
     /**
@@ -91,12 +125,8 @@ public class Main {
                 IOHelper.wait(1);
             } // Placeholder for grade assignment
             case 6 -> {
-                System.out.println("Choice 6");
-                IOHelper.wait(1);
-            } // Placeholder for grade calculation
-            case 7 -> {
                 return false;
-            } // Exit course management
+            }
             default -> {
                 System.out.println("Invalid choice. Try again.");
                 IOHelper.wait(1);
