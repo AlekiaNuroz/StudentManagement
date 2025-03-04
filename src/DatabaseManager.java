@@ -2,6 +2,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Manages database operations for the student management system,
@@ -199,6 +200,25 @@ public class DatabaseManager {
         }
     }
 
+    public void deleteRestoreStudent(Student student, boolean delete) {
+        String updateSQL = "UPDATE students SET isDeleted = ? WHERE id = ?";
+
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(updateSQL)) {
+
+            statement.setBoolean(1, delete);
+            statement.setString(2, student.getId());
+
+            int rowsAffected = statement.executeUpdate();
+            if (rowsAffected == 0) {
+                System.out.println("Student " + student.getId() + " does not exist in the database.");
+            }
+
+        } catch (SQLException e) {
+            System.out.println("Error updating student status: " + e.getMessage());
+        }
+    }
+
     /**
      * Retrieves a list of courses from the database based on their deletion status.
      * <p>
@@ -298,6 +318,45 @@ public class DatabaseManager {
         return null;
     }
 
+    public List<Student> getStudents(boolean deleted) {
+        String selectSQL = "SELECT * FROM students WHERE isDeleted=? ORDER BY id";
+        ArrayList<Student> students = new ArrayList<>();
+
+        try (Connection conn = getConnection();
+             PreparedStatement statement = conn.prepareStatement(selectSQL)) {
+
+            statement.setBoolean(1, deleted);
+            try (ResultSet resultSet = statement.executeQuery()) {
+                while (resultSet.next()) {
+                    students.add(getStudentFromResultSet(resultSet));
+                }
+            }
+            return students;
+        } catch (SQLException e) {
+            System.out.println("Error getting students: " + e.getMessage());
+            return new ArrayList<>();
+        }
+    }
+
+    public Student getStudent(String id) {
+        String sql = "SELECT * FROM students WHERE UPPER(id) = ?";
+
+        try (Connection conn = getConnection();
+            PreparedStatement statement = conn.prepareStatement(sql)) {
+
+            statement.setString(1, id.toUpperCase());
+
+            try (ResultSet resultSet = statement.executeQuery()) {
+                if (resultSet.next()) {
+                    return getStudentFromResultSet(resultSet);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error fetching student: " + e.getMessage());
+        }
+        return null;
+    }
+
     /**
      * Extracts a Course object from a ResultSet.
      *
@@ -325,5 +384,25 @@ public class DatabaseManager {
             System.err.println("Error retrieving student data from ResultSet: " + e.getMessage());
             return null;
         }
+    }
+
+    public boolean insertStudent(Student student) {
+        String insertSQL = "INSERT INTO students (id, name) VALUES (?, ?)";
+
+        try (Connection connection = getConnection();
+             PreparedStatement statement = connection.prepareStatement(insertSQL)) {
+
+            statement.setString(1, student.getId());
+            statement.setString(2, student.getName());
+
+            int rowsAffected = statement.executeUpdate();
+            return rowsAffected > 0;
+
+        } catch (SQLIntegrityConstraintViolationException e) {
+            System.out.println("Student " + student.getId() + " already exists in the database.");
+        } catch (SQLException e) {
+            System.out.println("Error inserting student: " + e.getMessage());
+        }
+        return false;
     }
 }
