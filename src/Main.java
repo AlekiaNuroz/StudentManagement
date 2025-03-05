@@ -98,6 +98,7 @@ public class Main {
             case 4 -> studentManagement.restoreStudent();
             case 5 -> studentManagement.enrollStudentInCourse(courseManagement);
             case 6 -> studentManagement.listStudentEnrollments();
+            case 7 -> studentManagement.assignGradeToStudent();
             case 8 -> {
                 return false;
             }

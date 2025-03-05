@@ -3,8 +3,18 @@ import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Handles course management operations including listing, adding,
- * removing, and restoring courses.
+ * Manages course-related operations including creation, deletion, listing, and enrollment tracking.
+ * <p>
+ * This class serves as the primary interface between course data, user input, and database persistence.
+ * Key features include:
+ * <ul>
+ *   <li>Maintaining an in-memory list of active courses synchronized with the database</li>
+ *   <li>Tracking global enrollment statistics via {@link Course} static properties</li>
+ *   <li>Coordinating database operations through {@link DatabaseManager}</li>
+ * </ul>
+ *
+ * @see DatabaseManager
+ * @see Course
  */
 public class CourseManagement {
     private final List<Course> courses;
@@ -12,10 +22,22 @@ public class CourseManagement {
     private final DatabaseManager db;
 
     /**
-     * Initializes CourseManagement with a database manager and scanner.
+     * Initializes course management with database-backed data and enrollment statistics.
+     * <p>
+     * During construction:
+     * <ol>
+     *   <li>Loads active (non-deleted) courses via {@link DatabaseManager#getCourses(boolean)} with {@code false}</li>
+     *   <li>Calculates total enrolled students across all courses</li>
+     *   <li>Initializes static enrollment counter via {@link Course#setTotalEnrolledStudents(int)}</li>
+     *   <li>Stores references to database manager and input scanner</li>
+     * </ol>
      *
-     * @param db      The database manager for accessing course data.
-     * @param scanner The scanner for user input.
+     * @param db The database manager for persistence operations
+     * @param scanner The input scanner for user interactions
+     *
+     * @implNote The enrollment total is calculated by summing {@link Course#getCurrentEnrollment()} from all courses.
+     *           Ensures static enrollment counter reflects persisted data at initialization. Not thread-safe -
+     *           concurrent access to static enrollment counter requires external synchronization.
      */
     public CourseManagement(DatabaseManager db, Scanner scanner) {
         this.db = db;
@@ -27,32 +49,33 @@ public class CourseManagement {
     }
 
     /**
-     * Displays a formatted table of courses stored in the system.
+     * Displays all active courses in a formatted table with dynamic column widths and enrollment statistics.
      * <p>
-     * The table dynamically adjusts column widths based on the longest
-     * course code and course name to ensure proper alignment. If no courses
-     * are available, a message is displayed instead.
-     * </p>
+     * This method:
+     * <ol>
+     *   <li>Clears the screen via {@link IOHelper#clearScreen()}</li>
+     *   <li>Calculates column widths based on:
+     *     <ul>
+     *       <li>Longest course ID and name in the list</li>
+     *       <li>Header text ("Course Code" and "Course Name")</li>
+     *     </ul>
+     *   </li>
+     *   <li>Prints a table with:
+     *     <ul>
+     *       <li>Header row with four columns: Code, Name, Current Capacity, Max Capacity</li>
+     *       <li>Separator line using hyphens</li>
+     *       <li>Rows showing course details with aligned columns</li>
+     *     </ul>
+     *   </li>
+     *   <li>Displays total enrolled students across all courses using {@link Course#getTotalEnrolledStudents()}</li>
+     *   <li>Shows "No courses found" if the list is empty</li>
+     * </ol>
      *
-     * <p>
-     * The method clears the screen before displaying the table and waits for
-     * user input before returning to the previous menu.
-     * </p>
-     *
-     * <p><b>Behavior:</b></p>
-     * <ul>
-     *   <li>Finds the longest course code and course name to determine column width.</li>
-     *   <li>Prints a table with a header and dynamically formatted course details.</li>
-     *   <li>Displays "No courses found" if the list is empty.</li>
-     *   <li>Prompts the user to press ENTER before returning.</li>
-     * </ul>
-     *
-     * <p><b>Dependencies:</b></p>
-     * <ul>
-     *   <li>{@code IOHelper.clearScreen()} - Clears the console screen.</li>
-     *   <li>{@code IOHelper.getStringInput()} - Waits for user input.</li>
-     *   <li>{@code Course} - Represents a course with an ID, name, and max capacity.</li>
-     * </ul>
+     * @implNote The table formatting uses printf with dynamic width specifiers.
+     *           Column widths are determined via linear scan of all courses (O(n) time complexity).
+     *           Console output assumes monospaced font for proper alignment. Total enrollment
+     *           is retrieved from a static counter in {@link Course} which may need synchronization
+     *           in concurrent environments.
      */
     public void listCourses() {
         IOHelper.clearScreen();
@@ -87,33 +110,30 @@ public class CourseManagement {
     }
 
     /**
-     * Adds a new course to the system.
+     * Interactively adds a new course to both the in-memory collection and database after validation checks.
      * <p>
-     * This method prompts the user to enter a course ID and checks if the course
-     * already exists in the database. If the course does not exist, it creates
-     * a new course and attempts to insert it into the database. If successful,
-     * the course is added to the local list of courses.
-     * </p>
+     * This method executes the following workflow:
+     * <ol>
+     *   <li>Clears the console using {@link IOHelper#clearScreen()}</li>
+     *   <li>Prompts for a course ID and verifies uniqueness via {@link DatabaseManager#getCourse(String)}</li>
+     *   <li>If the course exists:
+     *     <ul>
+     *       <li>Displays "Course already exists" error and aborts operation</li>
+     *     </ul>
+     *   </li>
+     *   <li>If new:
+     *     <ul>
+     *       <li>Collects course details (name, capacity) via {@link #createCourse(String)}</li>
+     *       <li>Persists to database using {@link DatabaseManager#insertCourse(Course)}</li>
+     *       <li>On success: adds to in-memory {@code courses} list and displays confirmation</li>
+     *       <li>On failure: displays "Failed to add course" error</li>
+     *     </ul>
+     *   </li>
+     * </ol>
      *
-     * <p><b>Behavior:</b></p>
-     * <ul>
-     *   <li>Clears the screen before prompting for input.</li>
-     *   <li>Requests a course ID from the user.</li>
-     *   <li>Checks if the course already exists in the database.</li>
-     *   <li>If the course does not exist, creates a new course and inserts it.</li>
-     *   <li>Displays a success or failure message based on the database operation.</li>
-     * </ul>
-     *
-     * <p><b>Dependencies:</b></p>
-     * <ul>
-     *   <li>{@code IOHelper.clearScreen()} - Clears the console screen.</li>
-     *   <li>{@code IOHelper.getStringInput()} - Gets user input from the console.</li>
-     *   <li>{@code db.getCourse(String)} - Checks if the course already exists.</li>
-     *   <li>{@code createCourse(String)} - Creates a new {@code Course} object.</li>
-     *   <li>{@code db.insertCourse(Course)} - Inserts a course into the database.</li>
-     * </ul>
-     *
-     * @throws RuntimeException if an unexpected error occurs during database operations.
+     * @implNote Maintains synchronization between database and in-memory data.
+     *           Course ID validation is case-sensitive. Requires the database to enforce
+     *           unique constraint on course IDs for complete data integrity.
      */
     public void addCourse() {
         IOHelper.clearScreen();
@@ -136,30 +156,26 @@ public class CourseManagement {
     }
 
     /**
-     * Creates a new {@code Course} object with the given course ID.
+     * Interactively constructs a {@link Course} by collecting required fields through user input.
      * <p>
-     * This method prompts the user to enter a course name and a maximum capacity.
-     * It ensures the capacity is within the valid range (1 to 100) and then
-     * constructs a new {@code Course} object using the provided details.
-     * </p>
-     *
-     * <p><b>Behavior:</b></p>
+     * This method:
      * <ul>
-     *   <li>Requests a course name from the user.</li>
-     *   <li>Requests a maximum capacity, ensuring it is between 1 and 100.</li>
-     *   <li>Creates and returns a new {@code Course} object.</li>
+     *   <li>Collects course name via {@link IOHelper#getStringInput} with non-blank enforcement</li>
+     *   <li>Gets capacity with validation via {@link IOHelper#getIntInput}:
+     *     <ul>
+     *       <li>Accepts values between 1-100 (inclusive)</li>
+     *       <li>Uses default value 10 if input is invalid/empty (when allowed)</li>
+     *     </ul>
+     *   </li>
+     *   <li>Constructs a {@link Course} with the provided ID, collected name, and validated capacity</li>
      * </ul>
      *
-     * <p><b>Dependencies:</b></p>
-     * <ul>
-     *   <li>{@code IOHelper.getStringInput()} - Gets user input for the course name.</li>
-     *   <li>{@code IOHelper.getIntInput()} - Gets user input for the course capacity.</li>
-     *   <li>{@code Course} - Represents the course entity with an ID, name, and capacity.</li>
-     * </ul>
+     * @param id The pre-validated course ID to assign (typically generated externally)
+     * @return A fully initialized {@link Course} object with guaranteed valid fields
      *
-     * @param id The unique identifier for the course.
-     * @return A new {@code Course} object containing the provided details.
-     * @throws IllegalArgumentException if the input validation fails.
+     * @implNote This is a helper method for centralized course creation during add/restore workflows.
+     *           Input validation ensures minimum capacity (1) and prevents unreasonably large classes (100).
+     *           Does NOT persist to database - caller must handle storage operations.
      */
     private Course createCourse(String id) {
         String name = IOHelper.getStringInput(scanner, "Enter a course name: ", false);
@@ -168,31 +184,30 @@ public class CourseManagement {
     }
 
     /**
-     * Removes a course from the system.
+     * Soft-deletes a course by removing it from the active list and updating its database status.
      * <p>
-     * This method displays the list of available courses and prompts the user to
-     * enter the course code of the course they wish to remove. If the course exists,
-     * it is removed from the local list and marked as deleted in the database.
-     * Otherwise, a message is displayed indicating that the course was not found.
-     * </p>
+     * This method:
+     * <ol>
+     *   <li>Clears the screen via {@link IOHelper#clearScreen()}</li>
+     *   <li>Displays active courses using {@link #listCourses()}</li>
+     *   <li>Prompts for a course code to delete</li>
+     *   <li>Searches for the course in the active list:
+     *     <ul>
+     *       <li>If found:
+     *         <ul>
+     *           <li>Removes from the in-memory {@code courses} collection</li>
+     *           <li>Persists deletion via {@link DatabaseManager#deleteRestoreCourse(Course, boolean)} with {@code true}</li>
+     *           <li>Displays success message</li>
+     *         </ul>
+     *       </li>
+     *       <li>If not found, displays error message and pauses via {@link IOHelper#wait(int)}</li>
+     *     </ul>
+     *   </li>
+     * </ol>
      *
-     * <p><b>Behavior:</b></p>
-     * <ul>
-     *   <li>Clears the screen before displaying the course list.</li>
-     *   <li>Prompts the user to enter the course code to delete.</li>
-     *   <li>Searches for the course in the list.</li>
-     *   <li>If found, removes the course from the list and marks it as deleted in the database.</li>
-     *   <li>If not found, displays an appropriate message and waits briefly.</li>
-     * </ul>
-     *
-     * <p><b>Dependencies:</b></p>
-     * <ul>
-     *   <li>{@code IOHelper.clearScreen()} - Clears the console screen.</li>
-     *   <li>{@code listCourses()} - Displays the available courses.</li>
-     *   <li>{@code IOHelper.getStringInput()} - Gets user input for the course code.</li>
-     *   <li>{@code db.deleteRestoreCourse(Course, boolean)} - Marks the course as deleted in the database.</li>
-     *   <li>{@code IOHelper.wait(int)} - Pauses execution for a specified duration.</li>
-     * </ul>
+     * @implNote Implements a soft-delete pattern - the course is marked as deleted in persistence but retained in the database.
+     *           Uses a linear search (O(n) time) through the courses list. Maintains consistency between in-memory state
+     *           and database records.
      */
     public void removeCourse() {
         IOHelper.clearScreen();
@@ -214,30 +229,30 @@ public class CourseManagement {
     }
 
     /**
-     * Restores a previously deleted course.
+     * Restores a previously soft-deleted course from the database and adds it back to the active course list.
      * <p>
-     * This method displays a list of deleted courses and prompts the user to enter
-     * the course code of the course they wish to restore. If the course exists,
-     * it is restored in the database and added back to the local list of courses.
-     * Otherwise, an error message is displayed.
-     * </p>
+     * This method performs the following operations:
+     * <ol>
+     *   <li>Clears the screen using {@link IOHelper#clearScreen()}</li>
+     *   <li>Retrieves all soft-deleted courses via {@link DatabaseManager#getCourses(boolean)} with {@code true}</li>
+     *   <li>Displays the list of deleted courses</li>
+     *   <li>Prompts for a course code to restore</li>
+     *   <li>Searches deleted courses for a matching ID:
+     *     <ul>
+     *       <li>If found:
+     *         <ul>
+     *           <li>Adds course back to active {@code courses} collection</li>
+     *           <li>Updates database status via {@link DatabaseManager#deleteRestoreCourse(Course, boolean)} with {@code false}</li>
+     *         </ul>
+     *       </li>
+     *       <li>If not found, displays "Course not found" message</li>
+     *     </ul>
+     *   </li>
+     * </ol>
      *
-     * <p><b>Behavior:</b></p>
-     * <ul>
-     *   <li>Clears the screen before displaying deleted courses.</li>
-     *   <li>Prompts the user to enter the course code to restore.</li>
-     *   <li>Checks if the course exists in the list of deleted courses.</li>
-     *   <li>If found, restores the course in the database and adds it back to the active courses list.</li>
-     *   <li>If not found, displays an appropriate error message.</li>
-     * </ul>
-     *
-     * <p><b>Dependencies:</b></p>
-     * <ul>
-     *   <li>{@code IOHelper.clearScreen()} - Clears the console screen.</li>
-     *   <li>{@code db.getDeletedCourses()} - Retrieves the list of deleted courses.</li>
-     *   <li>{@code IOHelper.getStringInput()} - Gets user input for the course code.</li>
-     *   <li>{@code db.deleteRestoreCourse(Course, boolean)} - Restores the course in the database.</li>
-     * </ul>
+     * @implNote The {@code true} parameter in {@code getCourses(true)} indicates retrieval of deleted records.
+     *           Maintains synchronization between in-memory state and database persistence.
+     *           Uses case-sensitive course ID matching for restoration.
      */
     public void restoreCourse() {
         IOHelper.clearScreen();

@@ -1,34 +1,43 @@
+import java.util.Objects;
+
 /**
- * Represents a course offered in the student management system.
- * A course has a unique course code, a name, a maximum capacity, and tracks current enrollment.
+ * Represents an academic course with enrollment management capabilities.
+ * <p>
+ * Tracks both per-course enrollment limits and global enrollment statistics across all courses.
+ * Key features include:
+ * <ul>
+ *   <li>Course identification code and name</li>
+ *   <li>Maximum capacity enforcement</li>
+ *   <li>Current enrollment tracking</li>
+ *   <li>Global enrollment statistics via static counter</li>
+ * </ul>
  */
 public class Course {
-    /** The unique identifier for the course. */
     private String courseCode;
-    
-    /** The name of the course. */
     private String name;
-    
-    /** The maximum number of students allowed in the course. */
     private int maxCapacity;
-    
-    /** The current number of enrolled students. */
     private int currentEnrollment;
-    
-    /** Tracks the total number of enrolled students across all courses. */
     private static int totalEnrolledStudents;
 
     /**
-     * Constructs a new Course instance.
-     * 
-     * @param id The unique identifier for the course.
-     * @param name The name of the course.
-     * @param maxCapacity The maximum number of students allowed in the course.
+     * Creates a course with specified code, name, and maximum capacity (initial enrollment set to 0).
+     *
+     * @param id Unique course identifier code
+     * @param name Full course name
+     * @param maxCapacity Maximum allowed students (must be ≥ 0)
      */
     public Course(String id, String name, int maxCapacity) {
         this(id, name, maxCapacity, 0);
     }
 
+    /**
+     * Creates a course with full initialization parameters.
+     *
+     * @param id Unique course identifier code
+     * @param name Full course name
+     * @param maxCapacity Maximum allowed students (must be ≥ currentEnrollment)
+     * @param currentEnrollment Initial enrolled student count (must be ≥ 0)
+     */
     public Course(String id, String name, int maxCapacity, int currentEnrollment) {
         this.courseCode = id;
         this.name = name;
@@ -38,92 +47,99 @@ public class Course {
     }
 
     /**
-     * Gets the course ID.
-     * 
-     * @return The unique course code.
+     * @return The course's unique identifier code
      */
     public String getId() {
         return courseCode;
     }
 
     /**
-     * Sets the course ID.
-     * 
-     * @param courseCode The new course code.
+     * Updates the course identifier code.
+     *
+     * @param courseCode New unique identifier code (must not be null/empty)
+     * @implNote Changing code affects {@link #equals(Object)} comparisons
      */
     public void setId(String courseCode) {
         this.courseCode = courseCode;
     }
 
     /**
-     * Gets the course name.
-     * 
-     * @return The name of the course.
+     * @return The course's display name
      */
     public String getName() {
         return name;
     }
 
     /**
-     * Sets the course name.
-     * 
-     * @param name The new course name.
+     * Updates the course display name.
+     *
+     * @param name New course name (must not be null/empty)
      */
     public void setName(String name) {
-        this.name = name;
+        if (name == null || name.trim().isEmpty()) {
+            this.name = neme;
+        }
     }
 
     /**
-     * Gets the maximum capacity of the course.
-     * 
-     * @return The maximum number of students allowed in the course.
+     * @return Maximum allowed student capacity
      */
     public int getMaxCapacity() {
         return maxCapacity;
     }
 
     /**
-     * Sets the maximum capacity of the course.
-     * 
-     * @param maxCapacity The new maximum number of students.
+     * Updates course capacity.
+     *
+     * @param maxCapacity New maximum capacity (must be ≥ currentEnrollment)
+     * @implNote Does not automatically adjust current enrollment if capacity decreases
      */
     public void setMaxCapacity(int maxCapacity) {
         this.maxCapacity = maxCapacity;
     }
 
     /**
-     * Gets the current number of enrolled students.
-     * 
-     * @return The number of students currently enrolled in the course.
+     * @return Current number of enrolled students
      */
     public int getCurrentEnrollment() {
         return currentEnrollment;
     }
 
+    /**
+     * Sets global enrollment counter across all courses.
+     *
+     * @param value New total enrollment count (should match sum of all course enrollments)
+     * @implNote This static value requires manual synchronization with actual enrollments
+     */
     public static void setTotalEnrolledStudents(int value) {
         totalEnrolledStudents = value;
     }
 
     /**
-     * Gets the total number of enrolled students across all courses.
-     * 
-     * @return The total number of enrolled students.
+     * @return Total students enrolled across all courses
      */
     public static int getTotalEnrolledStudents() {
         return totalEnrolledStudents;
     }
 
     /**
-     * Checks if more students can be enrolled in the course.
-     * 
-     * @return true if enrollment is below max capacity, false otherwise.
+     * Checks if enrollment is still available.
+     *
+     * @return true if current enrollment < max capacity, false otherwise
      */
     public boolean canEnroll() {
         return currentEnrollment < maxCapacity;
     }
 
     /**
-     * Increases the enrollment count if the course is not full.
+     * Increments enrollment counters if capacity allows.
+     * <p>
+     * Affects both:
+     * <ul>
+     *   <li>This course's current enrollment</li>
+     *   <li>Global total enrollment counter</li>
+     * </ul>
+     * @implNote Thread-safe increment not guaranteed for static total
      */
     public void increaseEnrollment() {
         if (canEnroll()) {
@@ -133,12 +149,25 @@ public class Course {
     }
 
     /**
-     * Returns a string representation of the course.
-     * 
-     * @return A formatted string containing the course ID, name, and max capacity.
+     * Compares courses based on unique identifier code.
+     *
+     * @param obj Object to compare
+     * @return true if same course code (case-sensitive), false otherwise
+     */
+    public boolean equals(Object obj) {
+        if (this == obj) return true;
+        if (obj == null || getClass() != obj.getClass()) return false;
+        Course course = (Course) obj;
+        return courseCode.equals(course.courseCode); // Assuming courseCode uniquely identifies a course
+    }
+
+    /**
+     * Generates hash code based on course code.
+     *
+     * @return Hash code of course identifier
      */
     @Override
-    public String toString() {
-        return getId() + " - " + getName() + ": Max Capacity - " + getMaxCapacity();
+    public int hashCode() {
+        return Objects.hash(courseCode);
     }
 }

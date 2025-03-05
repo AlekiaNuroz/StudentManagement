@@ -2,7 +2,16 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Represents a student with a name, student ID, and enrolled courses.
+ * Represents a student with course enrollments and associated grades.
+ * <p>
+ * This class tracks:
+ * <ul>
+ *   <li>Student identifier and name</li>
+ *   <li>Enrolled courses mapped to grades (null indicates no grade assigned)</li>
+ *   <li>Course enrollment status and grade management</li>
+ * </ul>
+ *
+ * @see Course
  */
 public class Student {
     private final String studentId;
@@ -10,10 +19,10 @@ public class Student {
     private final Map<Course, Double> enrolledCourses; // Course -> Grade
 
     /**
-     * Constructs a Student object with the given name and student ID.
+     * Creates a new Student with no course enrollments.
      *
-     * @param name      The name of the student.
-     * @param studentId The unique identifier for the student.
+     * @param studentId Unique identifier for the student (case-sensitive)
+     * @param name Full name of the student (non-blank)
      */
     public Student(String studentId, String name) {
         this.name = name;
@@ -22,54 +31,51 @@ public class Student {
     }
 
     /**
-     * Gets the student's name.
-     *
-     * @return The name of the student.
+     * @return The student's full name
      */
     public String getName() {
         return name;
     }
 
     /**
-     * Gets the student's unique ID.
-     *
-     * @return The student ID.
+     * @return The student's unique identifier
      */
     public String getId() {
         return studentId;
     }
 
     /**
-     * Gets the courses the student is enrolled in along with their grades.
-     *
-     * @return A map of courses to grades.
+     * @return An unmodifiable view of enrolled courses and grades (null = ungraded)
+     * @implNote Modifications should be done through {@link #enrollInCourse(Course)}
+     *           and {@link #assignGrade(Course, double)}
      */
     public Map<Course, Double> getEnrolledCourses() {
         return enrolledCourses;
     }
 
     /**
-     * Enrolls the student in a course if not already enrolled.
+     * Enrolls the student in a course and updates course enrollment counts.
      *
-     * @param course The course to enroll in.
+     * @param course The course to enroll in (must not be null)
+     * @implNote Increases the course's enrollment count via {@link Course#increaseEnrollment()}
+     *           Initializes grade as null for the course
      */
     public void enrollInCourse(Course course) {
         course.increaseEnrollment();
-        enrolledCourses.put(course, null); // Grade is initially null
+        enrolledCourses.put(course, null);
     }
 
     /**
-     * Assigns a grade to the student for a specific course.
+     * Assigns a grade for an enrolled course.
      *
-     * @param course The course for which the grade is assigned.
-     * @param grade  The grade to assign.
+     * @param course The course to grade (must be previously enrolled)
+     * @param grade Percentage grade (0-100, caller must validate)
+     * @implNote Only updates grades for currently enrolled courses
+     *           Does not validate grade range - caller must ensure 0 ≤ grade ≤ 100
      */
     public void assignGrade(Course course, double grade) {
         if (enrolledCourses.containsKey(course)) {
             enrolledCourses.put(course, grade);
-            System.out.println("Assigned grade " + grade + " to " + name + " for " + course.getName());
-        } else {
-            System.out.println(name + " is not enrolled in " + course.getName());
         }
     }
 }

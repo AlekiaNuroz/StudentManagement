@@ -469,4 +469,21 @@ public class DatabaseManager {
             System.err.println("Error populating enrollments for student " + student.getId() + ": " + e.getMessage());
         }
     }
+
+    public boolean assignGrade(String studentId, String courseCode, double grade) {
+        String updateSql = "UPDATE enrollments SET grade = ? WHERE student_id = ? AND course_code = ?";
+
+        try (Connection conn = getConnection();
+            PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+            stmt.setDouble(1, grade);
+            stmt.setString(2, studentId);
+            stmt.setString(3, courseCode);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating enrollments for student " + studentId + ": " + e.getMessage());
+            return false;
+        }
+    }
 }
