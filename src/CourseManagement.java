@@ -78,7 +78,6 @@ public class CourseManagement {
         } else {
             System.out.println("No courses found");
         }
-        IOHelper.getStringInput(scanner, "\nPress ENTER to continue", true);
     }
 
     /**

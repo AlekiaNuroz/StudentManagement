@@ -102,37 +102,62 @@ public class StudentManagement {
         } else {
             System.out.println("No students found");
         }
-        IOHelper.getStringInput(scanner, "\nPress ENTER to continue", true);
     }
 
     public Optional<Student> findStudentById(String studentId) {
         return students.stream().filter(s -> s.getId().equals(studentId)).findFirst();
     }
 
-    public void enrollStudentInCourse(Course course) {
-        IOHelper.clearScreen();
-
+    public void enrollStudentInCourse(CourseManagement courseManagement) {
         listStudents();
 
-        String studentId = IOHelper.getStringInput(scanner, "Enter a student id to enroll: ", false);
+        String studentId = IOHelper.getStringInput(scanner, "\nEnter a student id to enroll: ", false);
+
+        courseManagement.listCourses();
+
+        String courseId = IOHelper.getStringInput(scanner, "\nEnter a course code to enroll: ", false);
+
+        Course courseToEnroll = db.getCourse(courseId);
 
         Optional<Student> studentOpt = findStudentById(studentId);
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
             // Check if already enrolled in memory
-            if (student.getEnrolledCourses().containsKey(course)) {
-                System.out.println(student.getName() + " is already enrolled in " + course.getName());
+            if (student.getEnrolledCourses().containsKey(courseToEnroll)) {
+                System.out.println(student.getName() + " is already enrolled in " + courseToEnroll.getName());
+                IOHelper.wait(1);
                 return;
             }
             // Persist to database
-            if (db.enrollStudentInCourse(studentId, course.getId())) {
-                student.enrollInCourse(course);
-                System.out.println(student.getName() + " successfully enrolled in " + course.getName());
+            if (db.enrollStudentInCourse(studentId, courseToEnroll.getId())) {
+
+                student.enrollInCourse(courseToEnroll);
+                System.out.println(student.getName() + " successfully enrolled in " + courseToEnroll.getName());
+                IOHelper.wait(1);
             } else {
                 System.out.println("Failed to enroll student in course.");
             }
         } else {
             System.out.println("Student not found.");
+        }
+    }
+
+    public void listStudentEnrollments() {
+        listStudents();
+
+        String studentId = IOHelper.getStringInput(scanner, "\nEnter a student id: ", false);
+
+        Optional<Student> studentOpt = findStudentById(studentId);
+        if (studentOpt.isPresent()) {
+            Student student = studentOpt.get();
+            System.out.println("Student ID: " + student.getId());
+            System.out.println("Student Name: " + student.getName());
+            System.out.println("Enrolled Courses:");
+            student.getEnrolledCourses().forEach( (course, grade) -> System.out.println("\t" + course.getId() + " - " + course.getName() + ": " + grade + "%"));
+            IOHelper.getStringInput(scanner, "\nPress ENTER to continue", true);
+        } else {
+            System.out.println("Student not found.");
+            IOHelper.wait(1);
         }
     }
 
@@ -142,6 +167,7 @@ public class StudentManagement {
             studentOpt.get().assignGrade(course, grade);
         } else {
             System.out.println("Student not found.");
+            IOHelper.wait(1);
         }
     }
 }

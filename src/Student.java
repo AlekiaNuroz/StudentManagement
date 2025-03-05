@@ -5,9 +5,9 @@ import java.util.Map;
  * Represents a student with a name, student ID, and enrolled courses.
  */
 public class Student {
-    private String studentId;
-    private String name;
-    private Map<Course, Double> enrolledCourses; // Course -> Grade
+    private final String studentId;
+    private final String name;
+    private final Map<Course, Double> enrolledCourses; // Course -> Grade
 
     /**
      * Constructs a Student object with the given name and student ID.
@@ -70,19 +70,5 @@ public class Student {
         } else {
             System.out.println(name + " is not enrolled in " + course.getName());
         }
-    }
-
-    /**
-     * Returns a string representation of the Student object.
-     *
-     * @return A string containing the student's details and enrolled courses.
-     */
-    @Override
-    public String toString() {
-        return "Student{" +
-                "name='" + name + '\'' +
-                ", studentId='" + studentId + '\'' +
-                ", enrolledCourses=" + enrolledCourses +
-                '}';
     }
 }

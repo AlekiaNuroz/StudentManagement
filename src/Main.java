@@ -14,10 +14,11 @@ public class Main {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
         DatabaseManager databaseManager = new DatabaseManager();
+        CourseManagement courseManagement = new CourseManagement(databaseManager, scanner);
         boolean running = true;
 
         while (running) {
-            running = handleMainMenu(databaseManager, scanner);
+            running = handleMainMenu(databaseManager, courseManagement, scanner);
         }
 
         scanner.close();
@@ -30,7 +31,7 @@ public class Main {
      * @param scanner         The scanner for user input.
      * @return {@code false} if the user chooses to exit, otherwise {@code true}.
      */
-    private static boolean handleMainMenu(DatabaseManager databaseManager, Scanner scanner) {
+    private static boolean handleMainMenu(DatabaseManager databaseManager, CourseManagement courseManagement, Scanner scanner) {
         IOHelper.clearScreen();
         IOHelper.printMenu("Welcome to the Student Management System",
                 new String[]{"Manage Courses", "Manage Students"});
@@ -41,7 +42,7 @@ public class Main {
                 manageCourses(databaseManager, scanner);
                 break;
             case 2:
-                manageStudents(databaseManager, scanner);
+                manageStudents(databaseManager, courseManagement, scanner);
                 break;
             case 3:
                 return false; // Exit the program
@@ -68,39 +69,36 @@ public class Main {
                     new String[]{"List Courses", "Add Course", "Delete Course", "Restore Course", "Calculate Overall Grade"});
 
             int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 6);
-            running = handleCourseChoice(courseManagement, choice);
+            running = handleCourseChoice(scanner, courseManagement, choice);
         }
     }
 
-    private static void manageStudents(DatabaseManager db, Scanner scanner) {
+    private static void manageStudents(DatabaseManager db, CourseManagement courseManagement, Scanner scanner) {
         StudentManagement studentManagement = new StudentManagement(db, scanner);
         boolean running = true;
 
         while (running) {
             IOHelper.clearScreen();
             IOHelper.printMenu("Manage Courses",
-                    new String[]{"List Students", "Add Student", "Delete Student", "Restore Student", "Enroll Student", "Add Grade"});
+                    new String[]{"List Students", "Add Student", "Delete Student", "Restore Student", "Enroll Student", "List Enrollments", "Add Grade"});
 
-            int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 7);
-            running = handleStudentChoice(studentManagement, choice);
+            int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 8);
+            running = handleStudentChoice(scanner, courseManagement, studentManagement, choice);
         }
     }
 
-    private static boolean handleStudentChoice(StudentManagement studentManagement, int choice) {
+    private static boolean handleStudentChoice(Scanner scanner, CourseManagement courseManagement, StudentManagement studentManagement, int choice) {
         switch (choice) {
-            case 1 -> studentManagement.listStudents();
+            case 1 -> {
+                studentManagement.listStudents();
+                IOHelper.getStringInput(scanner, "\nPress ENTER to continue", true);
+            }
             case 2 -> studentManagement.addStudent();
             case 3 -> studentManagement.removeStudent();
             case 4 -> studentManagement.restoreStudent();
-            case 5 -> {
-
-                studentManagement.enrollStudentInCourse(course);
-            }
-            case 6 -> {
-                System.out.println("Choice 6");
-                IOHelper.wait(1);
-            } // Placeholder for grade assignment
-            case 7 -> {
+            case 5 -> studentManagement.enrollStudentInCourse(courseManagement);
+            case 6 -> studentManagement.listStudentEnrollments();
+            case 8 -> {
                 return false;
             }
             default -> {
@@ -118,9 +116,12 @@ public class Main {
      * @param choice           The user’s menu choice.
      * @return {@code false} if the user chooses to exit course management, otherwise {@code true}.
      */
-    private static boolean handleCourseChoice(CourseManagement courseManagement, int choice) {
+    private static boolean handleCourseChoice(Scanner scanner, CourseManagement courseManagement, int choice) {
         switch (choice) {
-            case 1 -> courseManagement.listCourses();
+            case 1 -> {
+                courseManagement.listCourses();
+                IOHelper.getStringInput(scanner, "\nPress ENTER to continue", true);
+            }
             case 2 -> courseManagement.addCourse();
             case 3 -> courseManagement.removeCourse();
             case 4 -> courseManagement.restoreCourse();
