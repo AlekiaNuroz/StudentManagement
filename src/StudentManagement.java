@@ -150,10 +150,12 @@ public class StudentManagement {
         Optional<Student> studentOpt = findStudentById(studentId);
         if (studentOpt.isPresent()) {
             Student student = studentOpt.get();
+            IOHelper.clearScreen();
             System.out.println("Student ID: " + student.getId());
             System.out.println("Student Name: " + student.getName());
             System.out.println("Enrolled Courses:");
-            student.getEnrolledCourses().forEach( (course, grade) -> System.out.println("\t" + course.getId() + " - " + course.getName() + ": " + grade + "%"));
+            student.getEnrolledCourses().forEach( (course, grade) -> System.out.println("\t" + course.getId() + " - "
+                    + course.getName() + ": " + ((grade == null)? "No grade" : grade + "%")));
             IOHelper.getStringInput(scanner, "\nPress ENTER to continue", true);
         } else {
             System.out.println("Student not found.");

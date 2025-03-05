@@ -1,5 +1,6 @@
 import java.util.List;
 import java.util.Scanner;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Handles course management operations including listing, adding,
@@ -19,6 +20,9 @@ public class CourseManagement {
     public CourseManagement(DatabaseManager db, Scanner scanner) {
         this.db = db;
         this.courses = db.getCourses(false);
+        AtomicInteger enrolled = new AtomicInteger();
+        courses.forEach(course -> enrolled.addAndGet(course.getCurrentEnrollment()));
+        Course.setTotalEnrolledStudents(enrolled.get());
         this.scanner = scanner;
     }
 
@@ -65,16 +69,18 @@ public class CourseManagement {
             maxCodeWidth = Math.max("Course Code".length(), maxCodeWidth);
 
             // Format String
-            String format = "| %-" + maxCodeWidth + "s | %-" + maxNameWidth + "s | %-12s |\n";
+            String format = "| %-" + maxCodeWidth + "s | %-" + maxNameWidth + "s | %-16s | %-12s |\n";
 
             // Print Header
-            System.out.printf(format, "Course Code", "Course Name", "Max Capacity");
-            System.out.println("|" + "-".repeat(maxCodeWidth + 2) + "|" + "-".repeat(maxNameWidth + 2) + "|" + "-".repeat(14) + "|");
+            System.out.printf(format, "Course Code", "Course Name", "Current Capacity", "Max Capacity");
+            System.out.println("|" + "-".repeat(maxCodeWidth + 2) + "|" + "-".repeat(maxNameWidth + 2) + "|" + "-".repeat(18) + "|" + "-".repeat(14) + "|");
 
             // Print Courses
             for (Course course : courses) {
-                System.out.printf(format, course.getId(), course.getName(), course.getMaxCapacity());
+                System.out.printf(format, course.getId(), course.getName(), course.getCurrentEnrollment(), course.getMaxCapacity());
             }
+
+            System.out.println("\nTotal enrolled students: " + Course.getTotalEnrolledStudents());
         } else {
             System.out.println("No courses found");
         }

@@ -80,7 +80,8 @@ public class DatabaseManager {
                 + "course_code TEXT PRIMARY KEY, "
                 + "name TEXT NOT NULL, "
                 + "max_capacity INTEGER NOT NULL, "
-                + "isDeleted BOOLEAN DEFAULT FALSE)",
+                + "isDeleted BOOLEAN DEFAULT FALSE, "
+                + "enrolled INTEGER DEFAULT 0)",
     
             "CREATE TABLE IF NOT EXISTS enrollments ("
                 + "student_id TEXT, "
@@ -368,7 +369,8 @@ public class DatabaseManager {
             String id = resultSet.getString("course_code");
             String name = resultSet.getString("name");
             int capacity = resultSet.getInt("max_capacity");
-            return new Course(id, name, capacity);
+            int enrolled = resultSet.getInt("enrolled");
+            return new Course(id, name, capacity, enrolled);
         } catch (SQLException e) {
             System.err.println("Error retrieving course data from ResultSet: " + e.getMessage());
             return null; // Return null if there's an issue retrieving data
@@ -379,7 +381,9 @@ public class DatabaseManager {
         try {
             String studentId = resultSet.getString("id");
             String name = resultSet.getString("name");
-            return new Student(studentId, name);
+            Student student = new Student(studentId, name);
+            populateEnrollments(student);
+            return student;
         } catch (SQLException e) {
             System.err.println("Error retrieving student data from ResultSet: " + e.getMessage());
             return null;
@@ -407,6 +411,24 @@ public class DatabaseManager {
     }
 
     public boolean enrollStudentInCourse(String studentId, String courseCode) {
+        String courseUpdateSQL = "UPDATE courses SET enrolled = enrolled + 1 "
+                               + "WHERE course_code = ? AND enrolled < max_capacity";
+
+        try (Connection conn = getConnection();
+            PreparedStatement stmt = conn.prepareStatement(courseUpdateSQL)) {
+
+            stmt.setString(1, courseCode);
+
+            int rowsAffected = stmt.executeUpdate();
+            if(rowsAffected == 0) {
+                System.out.println("Student " + studentId + " could not be enrolled");
+                return false;
+            }
+        } catch (SQLException e) {
+            System.err.println("Error enrolling student: " + e.getMessage());
+            return false;
+        }
+
         String insertSQL = "INSERT INTO enrollments (student_id, course_code, grade) VALUES (?, ?, NULL)";
 
         try (Connection conn = getConnection();
@@ -423,6 +445,28 @@ public class DatabaseManager {
         } catch (SQLException e) {
             System.out.println("Error enrolling student in course: " + e.getMessage());
             return false;
+        }
+    }
+
+    private void populateEnrollments(Student student) {
+        String sql = "SELECT course_code, grade FROM enrollments WHERE student_id = ?";
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setString(1, student.getId());
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                String courseCode = rs.getString("course_code");
+                Double grade = rs.getDouble("grade");
+                if (rs.wasNull()) {
+                    grade = null;
+                }
+                Course course = getCourse(courseCode);
+                if (course != null) {
+                    student.getEnrolledCourses().put(course, grade);
+                }
+            }
+        } catch (SQLException e) {
+            System.err.println("Error populating enrollments for student " + student.getId() + ": " + e.getMessage());
         }
     }
 }

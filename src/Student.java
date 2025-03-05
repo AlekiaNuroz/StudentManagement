@@ -54,6 +54,7 @@ public class Student {
      * @param course The course to enroll in.
      */
     public void enrollInCourse(Course course) {
+        course.increaseEnrollment();
         enrolledCourses.put(course, null); // Grade is initially null
     }
 

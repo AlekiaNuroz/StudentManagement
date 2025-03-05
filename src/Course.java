@@ -26,10 +26,15 @@ public class Course {
      * @param maxCapacity The maximum number of students allowed in the course.
      */
     public Course(String id, String name, int maxCapacity) {
+        this(id, name, maxCapacity, 0);
+    }
+
+    public Course(String id, String name, int maxCapacity, int currentEnrollment) {
         this.courseCode = id;
         this.name = name;
         this.maxCapacity = maxCapacity;
-        this.currentEnrollment = 0;
+        this.currentEnrollment = currentEnrollment;
+
     }
 
     /**
@@ -95,6 +100,10 @@ public class Course {
         return currentEnrollment;
     }
 
+    public static void setTotalEnrolledStudents(int value) {
+        totalEnrolledStudents = value;
+    }
+
     /**
      * Gets the total number of enrolled students across all courses.
      * 
@@ -117,7 +126,7 @@ public class Course {
      * Increases the enrollment count if the course is not full.
      */
     public void increaseEnrollment() {
-        if (currentEnrollment < maxCapacity) {
+        if (canEnroll()) {
             currentEnrollment++;
             totalEnrolledStudents++;
         }
