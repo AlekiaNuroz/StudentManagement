@@ -405,4 +405,24 @@ public class DatabaseManager {
         }
         return false;
     }
+
+    public boolean enrollStudentInCourse(String studentId, String courseCode) {
+        String insertSQL = "INSERT INTO enrollments (student_id, course_code, grade) VALUES (?, ?, NULL)";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(insertSQL)) {
+
+            stmt.setString(1, studentId);
+            stmt.setString(2, courseCode);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLIntegrityConstraintViolationException e) {
+            System.out.println("Student " + studentId + " is already enrolled in course " + courseCode + ".");
+            return false;
+        } catch (SQLException e) {
+            System.out.println("Error enrolling student in course: " + e.getMessage());
+            return false;
+        }
+    }
 }

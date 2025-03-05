@@ -109,10 +109,28 @@ public class StudentManagement {
         return students.stream().filter(s -> s.getId().equals(studentId)).findFirst();
     }
 
-    public void enrollStudentInCourse(String studentId, Course course) {
+    public void enrollStudentInCourse(Course course) {
+        IOHelper.clearScreen();
+
+        listStudents();
+
+        String studentId = IOHelper.getStringInput(scanner, "Enter a student id to enroll: ", false);
+
         Optional<Student> studentOpt = findStudentById(studentId);
         if (studentOpt.isPresent()) {
-            studentOpt.get().enrollInCourse(course);
+            Student student = studentOpt.get();
+            // Check if already enrolled in memory
+            if (student.getEnrolledCourses().containsKey(course)) {
+                System.out.println(student.getName() + " is already enrolled in " + course.getName());
+                return;
+            }
+            // Persist to database
+            if (db.enrollStudentInCourse(studentId, course.getId())) {
+                student.enrollInCourse(course);
+                System.out.println(student.getName() + " successfully enrolled in " + course.getName());
+            } else {
+                System.out.println("Failed to enroll student in course.");
+            }
         } else {
             System.out.println("Student not found.");
         }

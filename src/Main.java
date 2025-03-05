@@ -79,7 +79,7 @@ public class Main {
         while (running) {
             IOHelper.clearScreen();
             IOHelper.printMenu("Manage Courses",
-                    new String[]{"List Students", "Add Student", "Delete Student", "Restore Student", "Add Grade"});
+                    new String[]{"List Students", "Add Student", "Delete Student", "Restore Student", "Enroll Student", "Add Grade"});
 
             int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 7);
             running = handleStudentChoice(studentManagement, choice);
@@ -93,10 +93,14 @@ public class Main {
             case 3 -> studentManagement.removeStudent();
             case 4 -> studentManagement.restoreStudent();
             case 5 -> {
-                System.out.println("Choice 5");
+
+                studentManagement.enrollStudentInCourse(course);
+            }
+            case 6 -> {
+                System.out.println("Choice 6");
                 IOHelper.wait(1);
             } // Placeholder for grade assignment
-            case 6 -> {
+            case 7 -> {
                 return false;
             }
             default -> {

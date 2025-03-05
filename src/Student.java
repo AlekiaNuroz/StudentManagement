@@ -54,12 +54,7 @@ public class Student {
      * @param course The course to enroll in.
      */
     public void enrollInCourse(Course course) {
-        if (!enrolledCourses.containsKey(course)) {
-            enrolledCourses.put(course, null); // Grade is initially null
-            System.out.println(name + " enrolled in " + course.getName());
-        } else {
-            System.out.println(name + " is already enrolled in " + course.getName());
-        }
+        enrolledCourses.put(course, null); // Grade is initially null
     }
 
     /**
