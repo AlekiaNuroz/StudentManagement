@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public class Student {
     private final String studentId;
-    private final String name;
+    private String name;
     private final Map<Course, Double> enrolledCourses; // Course -> Grade
 
     /**
@@ -35,6 +35,12 @@ public class Student {
      */
     public String getName() {
         return name;
+    }
+
+    public void setName(String name) {
+        if (name == null || !name.isEmpty()) {
+            this.name = name;
+        }
     }
 
     /**

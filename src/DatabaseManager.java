@@ -319,6 +319,24 @@ public class DatabaseManager {
         return null;
     }
 
+    /**
+     * Retrieves students from the database filtered by deletion status.
+     * <p>
+     * This method:
+     * <ul>
+     *   <li>Executes a SQL query to fetch active (undeleted) or deleted students based on the parameter</li>
+     *   <li>Orders results by student ID in ascending order</li>
+     *   <li>Maps database rows to {@link Student} objects using {@link #getStudentFromResultSet(ResultSet)}</li>
+     *   <li>Handles database resources automatically via try-with-resources</li>
+     * </ul>
+     *
+     * @param deleted {@code true} to retrieve soft-deleted students, {@code false} for active students
+     * @return A modifiable {@link List} of students (empty if no matches or errors occur)
+     *
+     * @implNote Uses prepared statements to prevent SQL injection. Returns an empty list (never null)
+     *           on database errors while logging the exception message. Results are ordered by
+     *           the database's natural ID ordering. Connection is acquired via {@link #getConnection()}.
+     */
     public List<Student> getStudents(boolean deleted) {
         String selectSQL = "SELECT * FROM students WHERE isDeleted=? ORDER BY id";
         ArrayList<Student> students = new ArrayList<>();
@@ -339,6 +357,24 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Retrieves a student from the database using a case-insensitive ID search.
+     * <p>
+     * This method:
+     * <ul>
+     *   <li>Performs a case-insensitive match on student ID using SQL UPPER() function</li>
+     *   <li>Returns the first matching student record</li>
+     *   <li>Returns null if no match found or on database errors</li>
+     * </ul>
+     *
+     * @param id The student ID to search for (case-insensitive match)
+     * @return The matching {@link Student} object, or null if not found/error occurs
+     *
+     * @implNote Uses prepared statements for SQL injection prevention. Converts input ID
+     *           to uppercase for case-insensitive comparison. Database connections and
+     *           statements are auto-closed via try-with-resources. Errors are logged to
+     *           stderr but not propagated to caller.
+     */
     public Student getStudent(String id) {
         String sql = "SELECT * FROM students WHERE UPPER(id) = ?";
 
@@ -359,10 +395,23 @@ public class DatabaseManager {
     }
 
     /**
-     * Extracts a Course object from a ResultSet.
+     * Creates a {@link Course} object from the current row of a {@link ResultSet}.
+     * <p>
+     * This method extracts column values for:
+     * <ul>
+     *   <li>Course code (alias "course_code")</li>
+     *   <li>Course name (alias "name")</li>
+     *   <li>Maximum capacity (alias "max_capacity")</li>
+     *   <li>Current enrollment (alias "enrolled")</li>
+     * </ul>
+     * and constructs a {@link Course} with these values.
      *
-     * @param resultSet ResultSet containing course data
-     * @return Course object or null if an error occurs
+     * @param resultSet The result set containing course data (cursor should be positioned on a valid row)
+     * @return A fully initialized {@link Course} object, or {@code null} if data retrieval fails
+     *
+     * @implNote This is a helper method for database mapping operations.
+     *           Errors are logged to stderr but not propagated. Callers must check for null returns.
+     *           Column names must match database schema/query aliases exactly.
      */
     private Course getCourseFromResultSet(ResultSet resultSet) {
         try {
@@ -377,6 +426,26 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Constructs a {@link Student} with enrollments from the current row of a {@link ResultSet}.
+     * <p>
+     * This method:
+     * <ul>
+     *   <li>Extracts student ID and name from "id" and "name" columns</li>
+     *   <li>Initializes a {@link Student} with these values</li>
+     *   <li>Populates enrollments via {@link #populateEnrollments(Student)}</li>
+     * </ul>
+     *
+     * @param resultSet The result set positioned at a valid student row
+     * @return Fully initialized {@link Student} with enrollments, or {@code null} on errors
+     *
+     * @implNote Requires exact column name matching in the result set ("id", "name").
+     *           Errors are logged to stderr but not propagated. The caller must:
+     *           <ul>
+     *             <li>Position the result set cursor before invocation</li>
+     *             <li>Handle null returns indicating data retrieval failures</li>
+     *           </ul>
+     */
     private Student getStudentFromResultSet (ResultSet resultSet) {
         try {
             String studentId = resultSet.getString("id");
@@ -390,6 +459,24 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Inserts a new student record into the database.
+     * <p>
+     * This method:
+     * <ul>
+     *   <li>Attempts to insert the student's ID and name into the {@code students} table</li>
+     *   <li>Handles duplicate IDs via {@link SQLIntegrityConstraintViolationException}</li>
+     *   <li>Uses parameterized queries to prevent SQL injection</li>
+     * </ul>
+     *
+     * @param student The {@link Student} object to persist (must have valid ID/name)
+     * @return {@code true} if insertion succeeded (1+ rows affected), {@code false} on failure/duplicate
+     *
+     * @implNote Uses try-with-resources for automatic connection/statement management.
+     *           Duplicate IDs trigger a specific error message. Does NOT update in-memory
+     *           student lists - caller must manage this separately. Database connection
+     *           is acquired via {@link #getConnection()}.
+     */
     public boolean insertStudent(Student student) {
         String insertSQL = "INSERT INTO students (id, name) VALUES (?, ?)";
 
@@ -410,6 +497,29 @@ public class DatabaseManager {
         return false;
     }
 
+    /**
+     * Enrolls a student in a course with capacity validation and duplicate enrollment checks.
+     * <p>
+     * This method performs a two-step operation:
+     * <ol>
+     *   <li>Attempts to increment the course's enrollment count if capacity allows</li>
+     *   <li>If successful, creates an enrollment record with a null grade</li>
+     * </ol>
+     *
+     * @param studentId The ID of the student to enroll (case-sensitive)
+     * @param courseCode The course code to enroll in (case-sensitive)
+     * @return {@code true} if enrollment succeeded in both steps, {@code false} if:
+     * <ul>
+     *   <li>Course is at maximum capacity</li>
+     *   <li>Duplicate enrollment exists</li>
+     *   <li>Database errors occur</li>
+     * </ul>
+     *
+     * @implNote Uses separate database connections for each operation - not atomic.
+     *           Potential inconsistency if course enrollment succeeds but enrollment record insertion fails.
+     *           Checks course capacity via SQL condition {@code enrolled < max_capacity}.
+     *           Duplicate enrollments are detected through primary key constraints.
+     */
     public boolean enrollStudentInCourse(String studentId, String courseCode) {
         String courseUpdateSQL = "UPDATE courses SET enrolled = enrolled + 1 "
                                + "WHERE course_code = ? AND enrolled < max_capacity";
@@ -448,6 +558,24 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Populates a student's enrolled courses and grades from database records.
+     * <p>
+     * This method:
+     * <ul>
+     *   <li>Queries the database for all enrollments associated with the student</li>
+     *   <li>Maps course codes to {@link Course} objects via {@link #getCourse(String)}</li>
+     *   <li>Handles NULL grade values from the database as null references</li>
+     *   <li>Silently skips courses that no longer exist in the system</li>
+     * </ul>
+     *
+     * @param student The student whose enrollments will be populated (must have valid ID)
+     *
+     * @implNote Uses separate database connection via {@link #getConnection()}.
+     *           Grades are stored as Double (nullable) in the student's enrollment map.
+     *           Errors are logged to stderr but not propagated to the caller.
+     *           Requires "enrollments" table with student_id, course_code, and grade columns.
+     */
     private void populateEnrollments(Student student) {
         String sql = "SELECT course_code, grade FROM enrollments WHERE student_id = ?";
         try (Connection conn = getConnection();
@@ -470,6 +598,27 @@ public class DatabaseManager {
         }
     }
 
+    /**
+     * Assigns/updates a grade for a student's course enrollment in the database.
+     * <p>
+     * This method directly updates the grade column in the enrollments table without
+     * validating course enrollment status or grade range constraints.
+     *
+     * @param studentId The ID of the student to grade (case-sensitive match)
+     * @param courseCode The course code to update (case-sensitive match)
+     * @param grade Numeric grade value to assign (caller must validate range)
+     * @return {@code true} if exactly one enrollment record was updated,
+     *         {@code false} if no matching enrollment exists or errors occur
+     *
+     * @implNote Does NOT verify:
+     * <ul>
+     *   <li>Existence of student/course</li>
+     *   <li>Grade validity (0-100 range)</li>
+     *   <li>Current enrollment status</li>
+     * </ul>
+     * Uses exact case-sensitive matches for both student_id and course_code.
+     * Errors are logged to stderr but not rethrown.
+     */
     public boolean assignGrade(String studentId, String courseCode, double grade) {
         String updateSql = "UPDATE enrollments SET grade = ? WHERE student_id = ? AND course_code = ?";
 
@@ -483,6 +632,119 @@ public class DatabaseManager {
             return rowsAffected > 0;
         } catch (SQLException e) {
             System.err.println("Error updating enrollments for student " + studentId + ": " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Updates the name of a student in the database.
+     * <p>
+     * This method directly modifies the student's name using a case-sensitive match on their ID.
+     *
+     * @param studentId The ID of the student to update (case-sensitive)
+     * @param newName The new full name to assign (non-blank, validation is caller's responsibility)
+     * @return {@code true} if exactly 1 student record was updated,
+     *         {@code false} if no matching student exists or errors occur
+     *
+     * @implNote
+     * <ul>
+     *   <li>Uses parameterized queries to prevent SQL injection</li>
+     *   <li>Does not validate name format/length - caller must ensure validity</li>
+     *   <li>Silently fails if student ID doesn't exist</li>
+     *   <li>Errors are logged to stderr but not rethrown</li>
+     * </ul>
+     */
+    public boolean updateStudentName(String studentId, String newName) {
+        String updateSql = "UPDATE students SET name = ? WHERE UPPER(id) = ?";
+
+        try (Connection conn = getConnection();
+            PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+
+            stmt.setString(1, newName);
+            stmt.setString(2, studentId);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating student name: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Updates the name of a course in the database identified by its course code.
+     * <p>
+     * This method performs a direct update of the course's name using a case-sensitive match on the course code.
+     *
+     * @param courseCode The unique identifier of the course to update (case-sensitive)
+     * @param newName The new name to assign to the course (validation is caller's responsibility)
+     * @return {@code true} if 1 or more rows were updated (success), {@code false} if:
+     * <ul>
+     *   <li>No course matches the provided code</li>
+     *   <li>A database error occurs</li>
+     * </ul>
+     *
+     * @implNote
+     * <ul>
+     *   <li>Uses parameterized queries to prevent SQL injection</li>
+     *   <li>Does not validate newName format/length - caller must ensure validity</li>
+     *   <li>Silently fails if the course code does not exist</li>
+     *   <li>Errors are logged to stderr but not propagated</li>
+     * </ul>
+     */
+    public boolean updateCourseName(String courseCode, String newName) {
+        String updateSql = "UPDATE courses SET name = ? WHERE UPPER(course_code) = ?";
+
+        try (Connection conn = getConnection();
+             PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+
+            stmt.setString(1, newName);
+            stmt.setString(2, courseCode);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating course name: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Updates the maximum capacity of a specified course in the database.
+     * <p>
+     * This method directly modifies the maximum student capacity for a course using a <em>case-insensitive</em> match on the course code.
+     *
+     * @param courseId The course code to update (case-insensitive match)
+     * @param maxCapacity The new maximum capacity to set (caller must ensure validity)
+     * @return {@code true} if 1+ rows were updated (success), {@code false} if:
+     * <ul>
+     *   <li>No course matches the provided ID (case-insensitive comparison)</li>
+     *   <li>New capacity is invalid (e.g., less than current enrollment)</li>
+     *   <li>Database errors occur</li>
+     * </ul>
+     *
+     * @implNote
+     * <ul>
+     *   <li>Uses <b>case-insensitive</b> matching for course code comparison</li>
+     *   <li>Does NOT validate capacity against current enrollment - may set invalid values</li>
+     *   <li>Uses parameterized queries to prevent SQL injection</li>
+     *   <li>Caller should validate {@code maxCapacity ≥ current_enrollment ≥ 0}</li>
+     *   <li>Errors are logged to stderr but not rethrown</li>
+     * </ul>
+     */
+    public boolean updateCourseMaxCapacity(String courseId, int maxCapacity) {
+        String updateSql = "UPDATE courses SET max_capacity = ? WHERE UPPER(course_code) = ?";
+
+        try (Connection conn = getConnection();
+            PreparedStatement stmt = conn.prepareStatement(updateSql)) {
+
+            stmt.setInt(1, maxCapacity);
+            stmt.setString(2, courseId);
+
+            int rowsAffected = stmt.executeUpdate();
+            return rowsAffected > 0;
+        } catch (SQLException e) {
+            System.err.println("Error updating course max capacity: " + e.getMessage());
             return false;
         }
     }

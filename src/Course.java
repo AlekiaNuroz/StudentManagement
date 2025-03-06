@@ -60,7 +60,9 @@ public class Course {
      * @implNote Changing code affects {@link #equals(Object)} comparisons
      */
     public void setId(String courseCode) {
-        this.courseCode = courseCode;
+        if (courseCode != null && !courseCode.isEmpty()) {
+            this.courseCode = courseCode;
+        }
     }
 
     /**
@@ -76,8 +78,8 @@ public class Course {
      * @param name New course name (must not be null/empty)
      */
     public void setName(String name) {
-        if (name == null || name.trim().isEmpty()) {
-            this.name = neme;
+        if (name != null && !name.isEmpty()) {
+            this.name = name;
         }
     }
 

@@ -367,6 +367,28 @@ public class StudentManagement {
         }
     }
 
+    /**
+     * Interactively assigns a grade to a student's course enrollment through console input.
+     * <p>
+     * This method guides the user through:
+     * <ol>
+     *   <li>Listing all students via {@link #listStudents()}</li>
+     *   <li>Selecting a student by ID</li>
+     *   <li>Displaying the student's enrolled courses</li>
+     *   <li>Selecting a course and validating grade input (0.0-100.0)</li>
+     *   <li>Persisting the grade via {@link DatabaseManager#assignGrade(String, String, double)}</li>
+     *   <li>Updating in-memory student data on success</li>
+     * </ol>
+     *
+     * @implNote
+     * <ul>
+     *   <li>Does not validate course enrollment status before grading - relies on database enforcement</li>
+     *   <li>Grade input is validated via {@link IOHelper#getDoubleInput}</li>
+     *   <li>Silently fails if course doesn't exist (courseToGrade could be null)</li>
+     *   <li>Maintains sync between database and in-memory {@link Student} object</li>
+     *   <li>Uses 1-second pauses via {@link IOHelper#wait(int)} for message visibility</li>
+     * </ul>
+     */
     public void assignGradeToStudent() {
         listStudents();
 
@@ -393,6 +415,45 @@ public class StudentManagement {
         } else {
             System.out.println("Student not found.");
             IOHelper.wait(1);
+        }
+    }
+
+    /**
+     * Interactively updates a student's name through console input and database persistence.
+     * <p>
+     * This method:
+     * <ol>
+     *   <li>Lists all students via {@link #listStudents()}</li>
+     *   <li>Prompts for a student ID (case-sensitive match)</li>
+     *   <li>Validates student existence via {@link #findStudentById(String)}</li>
+     *   <li>Collects new name input with validation</li>
+     *   <li>Updates both in-memory {@link Student} object and database record</li>
+     * </ol>
+     *
+     * @implNote
+     * <ul>
+     *   <li>Silently fails if student ID isn't found (no error message displayed)</li>
+     *   <li>Name validation (non-blank) is enforced by {@link IOHelper}</li>
+     *   <li>In-memory update occurs before database confirmation - could create temporary inconsistency</li>
+     *   <li>Success message depends on database operation, not just in-memory update</li>
+     * </ul>
+     */
+    public void updateStudentName() {
+        listStudents();
+
+        String studentId = IOHelper.getStringInput(scanner, "\nEnter a student id: ", false);
+        Optional<Student> studentOpt = findStudentById(studentId);
+        if (studentOpt.isPresent()) {
+            Student student = studentOpt.get();
+
+            String newStudentName = IOHelper.getStringInput(scanner, "\nEnter a new name for the student: ", false);
+
+            student.setName(newStudentName);
+
+            if (db.updateStudentName(studentId, newStudentName)) {
+                System.out.println("Student name successfully updated.");
+                IOHelper.wait(1);
+            }
         }
     }
 }

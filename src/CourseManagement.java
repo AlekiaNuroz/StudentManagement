@@ -1,6 +1,8 @@
 import java.util.List;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Manages course-related operations including creation, deletion, listing, and enrollment tracking.
@@ -179,7 +181,7 @@ public class CourseManagement {
      */
     private Course createCourse(String id) {
         String name = IOHelper.getStringInput(scanner, "Enter a course name: ", false);
-        int capacity = IOHelper.getIntInput(scanner, "Enter the maximum capacity: ", 1, 100, false, 10);
+        int capacity = IOHelper.getIntInput(scanner, "Enter the maximum capacity (1-100): ", 1, 100, false, 10);
         return new Course(id, name, capacity);
     }
 
@@ -269,5 +271,167 @@ public class CourseManagement {
                     courses.add(course);
                     db.deleteRestoreCourse(course, false);
                 }, () -> System.out.println("Course not found."));
+    }
+
+    /**
+     * Displays a student's overall grade based on their enrolled courses.
+     * <p>
+     * This method:
+     * <ol>
+     *   <li>Clears the screen via {@link IOHelper#clearScreen()}</li>
+     *   <li>Prompts for a student ID and retrieves the student via {@link DatabaseManager#getStudent(String)}</li>
+     *   <li>Calculates the grade using {@link #calculateOverallGrade(Student)}</li>
+     *   <li>Displays the result formatted as "[Name]'s overall grade is: [Grade]"</li>
+     * </ol>
+     *
+     * @implNote Does not handle null student case - may throw NullPointerException if invalid ID is entered.
+     *           The calculation method's logic (weighted average, etc.) is defined in {@code calculateOverallGrade}.
+     *           Console output assumes grades exist for all enrolled courses.
+     */
+    public void getOverallGrade() {
+        IOHelper.clearScreen();
+
+        String studentId = IOHelper.getStringInput(scanner, "Enter a student ID: ", false);
+        Student student = db.getStudent(studentId);
+
+        System.out.println(student.getName() + "'s overall grade is: " + calculateOverallGrade(student));
+        IOHelper.wait(2);
+    }
+
+    /**
+     * Calculates the overall grade for a student based on their enrolled courses with assigned grades.
+     * <p>
+     * This method:
+     * <ul>
+     *   <li>Iterates through all enrolled courses</li>
+     *   <li>Excludes courses without grades (null values)</li>
+     *   <li>Calculates a simple average of available grades</li>
+     * </ul>
+     *
+     * @param student The student to calculate grades for (must not be null)
+     * @return Average grade percentage (0.0-100.0) if grades exist, 0.0 otherwise
+     *
+     * @implNote Uses unweighted average calculation - all graded courses contribute equally.
+     *           Courses without grades are excluded from the calculation. Returns 0.0 rather than
+     *           NaN/error when no grades exist. Thread-safe atomic operations are used internally
+     *           but method is not thread-safe overall due to non-atomic student access.
+     */
+    public double calculateOverallGrade(Student student) {
+        AtomicReference<Double> overallGrade = new AtomicReference<>(0.0);
+        AtomicInteger count = new AtomicInteger(0); // Track non-null grades
+
+        student.getEnrolledCourses().forEach((course, grade) -> {
+            if (grade != null) { // Skip null grades
+                overallGrade.updateAndGet(v -> v + grade);
+                count.incrementAndGet();
+            }
+        });
+
+        return count.get() > 0 ? overallGrade.get() / count.get() : 0.0; // Avoid division by zero
+    }
+
+    /**
+     * Searches for a course by its unique identifier code.
+     * <p>
+     * This method performs a case-sensitive search through the in-memory list of courses
+     * and returns the first match wrapped in an {@link Optional}.
+     *
+     * @param courseCode The course ID to search for (exact case match required)
+     * @return An {@link Optional} containing the matched {@link Course} if found,
+     *         otherwise {@link Optional#empty()}
+     *
+     * @implNote
+     * <ul>
+     *   <li>Uses linear search (O(n) time complexity) via {@link java.util.stream.Stream} operations</li>
+     *   <li>Assumes course IDs are unique - returns first match but should only have one result</li>
+     *   <li>For frequent lookups, consider maintaining a {@link Map} of course codes to courses</li>
+     * </ul>
+     */
+    public Optional<Course> findCourseById(String courseCode) {
+        return courses.stream().filter(c -> c.getId().equals(courseCode)).findFirst();
+    }
+
+    /**
+     * Interactively updates a course's name through console input and database persistence.
+     * <p>
+     * This method:
+     * <ol>
+     *   <li>Lists all courses via {@link #listCourses()}</li>
+     *   <li>Prompts for a course code (case-sensitive match)</li>
+     *   <li>Validates course existence via {@link #findCourseById(String)}</li>
+     *   <li>Collects new name input with validation</li>
+     *   <li>Updates both in-memory {@link Course} object and database record</li>
+     * </ol>
+     *
+     * @implNote
+     * <ul>
+     *   <li>Contains a typo: variable {@code studentOpt} stores a {@link Course} object</li>
+     *   <li>Prompt incorrectly says "student" instead of "course" when requesting the new name</li>
+     *   <li>Silently fails if course code isn't found (no error message displayed)</li>
+     *   <li>Name validation (non-blank) enforced by {@link IOHelper}</li>
+     *   <li>In-memory update occurs before database confirmation - may create temporary inconsistency</li>
+     *   <li>Success message depends on database operation, not just in-memory update</li>
+     * </ul>
+     */
+    public void updateCourseName() {
+        listCourses();
+
+        String courseCode = IOHelper.getStringInput(scanner, "\nEnter a course code: ", false);
+        Optional<Course> studentOpt = findCourseById(courseCode);
+        if (studentOpt.isPresent()) {
+            Course course = studentOpt.get();
+
+            String newCourseName = IOHelper.getStringInput(scanner, "\nEnter a new name for the student: ", false);
+
+            course.setName(newCourseName);
+
+            if (db.updateCourseName(courseCode, newCourseName)) {
+                System.out.println("Course name successfully updated.");
+                IOHelper.wait(1);
+            }
+        }
+
+    }
+
+    /**
+     * Interactively updates a course's maximum capacity through console input and database persistence.
+     * <p>
+     * This method:
+     * <ol>
+     *   <li>Lists all courses via {@link #listCourses()}</li>
+     *   <li>Prompts for a course code (case-sensitive match)</li>
+     *   <li>Validates course existence via {@link #findCourseById(String)}</li>
+     *   <li>Collects new capacity input (validated between 1-100)</li>
+     *   <li>Updates both in-memory {@link Course} object and database record</li>
+     * </ol>
+     *
+     * @implNote
+     * <ul>
+     *   <li>Contains a typo: variable {@code studentOpt} stores a {@link Course} object</li>
+     *   <li>Does not validate new capacity against current enrollment (may set invalid capacity)</li>
+     *   <li>Silently fails if course code isn't found (no error message displayed)</li>
+     *   <li>Input validation enforced by {@link IOHelper#getIntInput}</li>
+     *   <li>In-memory update occurs before database confirmation - temporary inconsistency possible</li>
+     *   <li>Assumes database enforces capacity ≥ current enrollment</li>
+     * </ul>
+     */
+    public void updateCourseMaxCapacity() {
+        listCourses();
+
+        String courseCode = IOHelper.getStringInput(scanner, "\nEnter a course code: ", false);
+        Optional<Course> studentOpt = findCourseById(courseCode);
+        if (studentOpt.isPresent()) {
+            Course course = studentOpt.get();
+
+            int newMaxCapacity = IOHelper.getIntInput(scanner, "\nEnter the new capacity for the course (1-100): ", 1, 100);
+
+            course.setMaxCapacity(newMaxCapacity);
+
+            if (db.updateCourseMaxCapacity(courseCode, newMaxCapacity)) {
+                System.out.println("Max capacity successfully updated.");
+                IOHelper.wait(1);
+            }
+        }
+
     }
 }
