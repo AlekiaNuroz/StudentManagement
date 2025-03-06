@@ -344,7 +344,7 @@ public class CourseManagement {
      * <ul>
      *   <li>Uses linear search (O(n) time complexity) via {@link java.util.stream.Stream} operations</li>
      *   <li>Assumes course IDs are unique - returns first match but should only have one result</li>
-     *   <li>For frequent lookups, consider maintaining a {@link Map} of course codes to courses</li>
+     *   <li>For frequent lookups, consider maintaining a Map of course codes to courses</li>
      * </ul>
      */
     public Optional<Course> findCourseById(String courseCode) {

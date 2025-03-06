@@ -13,7 +13,7 @@ import java.util.Objects;
  * </ul>
  */
 public class Course {
-    private String courseCode;
+    private final String courseCode;
     private String name;
     private int maxCapacity;
     private int currentEnrollment;
@@ -51,18 +51,6 @@ public class Course {
      */
     public String getId() {
         return courseCode;
-    }
-
-    /**
-     * Updates the course identifier code.
-     *
-     * @param courseCode New unique identifier code (must not be null/empty)
-     * @implNote Changing code affects {@link #equals(Object)} comparisons
-     */
-    public void setId(String courseCode) {
-        if (courseCode != null && !courseCode.isEmpty()) {
-            this.courseCode = courseCode;
-        }
     }
 
     /**
