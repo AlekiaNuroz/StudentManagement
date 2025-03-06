@@ -261,9 +261,7 @@ public class CourseManagement {
         List<Course> deletedCourses = db.getCourses(true);
 
         System.out.println("Deleted courses:");
-        deletedCourses.forEach(course -> {
-            System.out.println("\t" + course.getId() + " - " + course.getName());
-        });
+        deletedCourses.forEach(course -> System.out.println("\t" + course.getId() + " - " + course.getName()));
 
         String code = IOHelper.getStringInput(scanner, "Enter a course code to restore: ", false);
 

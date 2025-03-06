@@ -138,7 +138,7 @@ public class DatabaseManager {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(insertSQL)) {
 
-            statement.setString(1, course.getId());
+            statement.setString(1, course.getId().toUpperCase());
             statement.setString(2, course.getName());
             statement.setInt(3, course.getMaxCapacity());
 
@@ -183,7 +183,7 @@ public class DatabaseManager {
      * @param delete {@code true} to mark the course as deleted, {@code false} to restore it.
      */
     public void deleteRestoreCourse(Course course, boolean delete) {
-        String updateSQL = "UPDATE courses SET isDeleted = ? WHERE course_code = ?";
+        String updateSQL = "UPDATE courses SET isDeleted = ? WHERE UPPER(course_code) = ?";
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(updateSQL)) {
@@ -202,7 +202,7 @@ public class DatabaseManager {
     }
 
     public void deleteRestoreStudent(Student student, boolean delete) {
-        String updateSQL = "UPDATE students SET isDeleted = ? WHERE id = ?";
+        String updateSQL = "UPDATE students SET isDeleted = ? WHERE UPPER(id) = ?";
 
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(updateSQL)) {
@@ -483,8 +483,8 @@ public class DatabaseManager {
         try (Connection connection = getConnection();
              PreparedStatement statement = connection.prepareStatement(insertSQL)) {
 
-            statement.setString(1, student.getId());
-            statement.setString(2, student.getName());
+            statement.setString(1, student.getId().toUpperCase());
+            statement.setString(2, student.getName().toUpperCase());
 
             int rowsAffected = statement.executeUpdate();
             return rowsAffected > 0;
@@ -522,7 +522,7 @@ public class DatabaseManager {
      */
     public boolean enrollStudentInCourse(String studentId, String courseCode) {
         String courseUpdateSQL = "UPDATE courses SET enrolled = enrolled + 1 "
-                               + "WHERE course_code = ? AND enrolled < max_capacity";
+                               + "WHERE UPPER(course_code) = ? AND enrolled < max_capacity";
 
         try (Connection conn = getConnection();
             PreparedStatement stmt = conn.prepareStatement(courseUpdateSQL)) {
@@ -544,8 +544,8 @@ public class DatabaseManager {
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(insertSQL)) {
 
-            stmt.setString(1, studentId);
-            stmt.setString(2, courseCode);
+            stmt.setString(1, studentId.toUpperCase());
+            stmt.setString(2, courseCode.toUpperCase());
 
             int rowsAffected = stmt.executeUpdate();
             return rowsAffected > 0;
@@ -577,7 +577,7 @@ public class DatabaseManager {
      *           Requires "enrollments" table with student_id, course_code, and grade columns.
      */
     private void populateEnrollments(Student student) {
-        String sql = "SELECT course_code, grade FROM enrollments WHERE student_id = ?";
+        String sql = "SELECT course_code, grade FROM enrollments WHERE UPPER(student_id) = ?";
         try (Connection conn = getConnection();
              PreparedStatement stmt = conn.prepareStatement(sql)) {
             stmt.setString(1, student.getId());
@@ -604,8 +604,8 @@ public class DatabaseManager {
      * This method directly updates the grade column in the enrollments table without
      * validating course enrollment status or grade range constraints.
      *
-     * @param studentId The ID of the student to grade (case-sensitive match)
-     * @param courseCode The course code to update (case-sensitive match)
+     * @param studentId The ID of the student to grade (case-insensitive match)
+     * @param courseCode The course code to update (case-insensitive match)
      * @param grade Numeric grade value to assign (caller must validate range)
      * @return {@code true} if exactly one enrollment record was updated,
      *         {@code false} if no matching enrollment exists or errors occur
@@ -620,7 +620,7 @@ public class DatabaseManager {
      * Errors are logged to stderr but not rethrown.
      */
     public boolean assignGrade(String studentId, String courseCode, double grade) {
-        String updateSql = "UPDATE enrollments SET grade = ? WHERE student_id = ? AND course_code = ?";
+        String updateSql = "UPDATE enrollments SET grade = ? WHERE UPPER(student_id) = ? AND UPPER(course_code) = ?";
 
         try (Connection conn = getConnection();
             PreparedStatement stmt = conn.prepareStatement(updateSql)) {
@@ -641,7 +641,7 @@ public class DatabaseManager {
      * <p>
      * This method directly modifies the student's name using a case-sensitive match on their ID.
      *
-     * @param studentId The ID of the student to update (case-sensitive)
+     * @param studentId The ID of the student to update (case-insensitive)
      * @param newName The new full name to assign (non-blank, validation is caller's responsibility)
      * @return {@code true} if exactly 1 student record was updated,
      *         {@code false} if no matching student exists or errors occur
@@ -676,7 +676,7 @@ public class DatabaseManager {
      * <p>
      * This method performs a direct update of the course's name using a case-sensitive match on the course code.
      *
-     * @param courseCode The unique identifier of the course to update (case-sensitive)
+     * @param courseCode The unique identifier of the course to update (case-insensitive)
      * @param newName The new name to assign to the course (validation is caller's responsibility)
      * @return {@code true} if 1 or more rows were updated (success), {@code false} if:
      * <ul>
