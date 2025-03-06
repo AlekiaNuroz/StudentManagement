@@ -173,24 +173,26 @@ public class StudentManagement {
      *   <li>If not found, displays an error message</li>
      * </ol>
      *
-     * @implNote The prompt text contains a likely typo ("course code" instead of "student ID").
-     *           The restoration process affects both in-memory state and database persistence.
+     * @implNote The restoration process affects both in-memory state and database persistence.
      *           Requires proper transaction handling in {@link DatabaseManager} methods.
      */
     public void restoreStudent() {
         IOHelper.clearScreen();
         List<Student> deletedStudents = db.getStudents(true);
 
-        deletedStudents.forEach(System.out::println);
+        System.out.println("Deleted students:");
+        deletedStudents.forEach(Student -> System.out.println("\t" + Student.getId() + " - " + Student.getName()));
 
-        String code = IOHelper.getStringInput(scanner, "Enter a course code to restore: ", false);
+        String studentId = IOHelper.getStringInput(scanner, "Enter a student id to restore: ", false);
 
         deletedStudents.stream()
-                .filter(c -> c.getId().equals(code))
+                .filter(c -> c.getId().equals(studentId))
                 .findFirst()
                 .ifPresentOrElse(student -> {
                     students.add(student);
                     db.deleteRestoreStudent(student, false);
+                    System.out.println("Student restored successfully.");
+                    IOHelper.wait(1);
                 }, () -> System.out.println("Student not found."));
     }
 
