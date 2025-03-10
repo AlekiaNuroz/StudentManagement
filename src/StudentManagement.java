@@ -378,7 +378,7 @@ public class StudentManagement {
      *   <li>Selecting a student by ID</li>
      *   <li>Displaying the student's enrolled courses</li>
      *   <li>Selecting a course and validating grade input (0.0-100.0)</li>
-     *   <li>Persisting the grade via {@link DatabaseManager#assignGrade(String, String, double)}</li>
+     *   <li>Persisting the grade via {@link DatabaseManager#assignGrade(String, String, Double)}</li>
      *   <li>Updating in-memory student data on success</li>
      * </ol>
      *
@@ -391,6 +391,7 @@ public class StudentManagement {
      *   <li>Uses 1-second pauses via {@link IOHelper#wait(int)} for message visibility</li>
      * </ul>
      */
+    @SuppressWarnings("unused")
     public void assignGradeToStudent() {
         listStudents();
 

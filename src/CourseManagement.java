@@ -317,6 +317,7 @@ public class CourseManagement {
      *           NaN/error when no grades exist. Thread-safe atomic operations are used internally
      *           but method is not thread-safe overall due to non-atomic student access.
      */
+    @SuppressWarnings("unused")
     public double calculateOverallGrade(Student student) {
         AtomicReference<Double> overallGrade = new AtomicReference<>(0.0);
         AtomicInteger count = new AtomicInteger(0); // Track non-null grades

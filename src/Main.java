@@ -78,7 +78,7 @@ public class Main {
     private static boolean handleMainMenu(DatabaseManager databaseManager, CourseManagement courseManagement, Scanner scanner) {
         IOHelper.clearScreen();
         IOHelper.printMenu("Welcome to the Student Management System",
-                new String[]{"Manage Courses", "Manage Students"});
+                new String[]{"Manage Courses", "Manage Students"}, true, "Exit");
 
         int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 3);
         switch (choice) {
@@ -129,7 +129,7 @@ public class Main {
             IOHelper.clearScreen();
             IOHelper.printMenu("Manage Courses",
                     new String[]{"List Courses", "Add Course", "Delete Course", "Restore Course", "Calculate Overall Grade",
-                            "Update Course Name", "Update Course Maximum Capacity"});
+                            "Update Course Name", "Update Course Maximum Capacity"}, true, "Back");
 
             int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 8);
             running = handleCourseChoice(scanner, courseManagement, choice);
@@ -166,9 +166,9 @@ public class Main {
 
         while (running) {
             IOHelper.clearScreen();
-            IOHelper.printMenu("Manage Courses",
+            IOHelper.printMenu("Manage Students",
                     new String[]{"List Students", "Add Student", "Delete Student", "Restore Student", "Enroll Student",
-                            "List Enrollments", "Add Grade", "Update Student Name"});
+                            "List Enrollments", "Add Grade", "Update Student Name"}, true, "Back");
 
             int choice = IOHelper.getIntInput(scanner, "Enter choice: ", 1, 9);
             running = handleStudentChoice(scanner, courseManagement, studentManagement, choice);
